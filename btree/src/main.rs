@@ -20,7 +20,11 @@ fn main() {
     insert_test(&mut t, &keys.into(), n);
     // search_test(&mut t, &keys, &mut rng, n);
     t.delete(10);
+    t.print_tree();
     t.delete(20);
+    // t.delete(50);
+    t.print_tree();
+    t.delete(60);
     // t.delete(50);
     t.print_tree();
 }

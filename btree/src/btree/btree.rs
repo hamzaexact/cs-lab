@@ -473,12 +473,13 @@ impl BTree {
             .unwrap(); // Unwrap because find_leaf  function MUST RETURN A LEAF
 
         // Overflow if we executed this block
-        if !state {}
-
-
+        if !state {
+            println!("UNDERFLOW");
+            self.right_borrow(leaf_rc, key);
+        }
         // TODO: Simple case
         // I switched this to true to test the behaviour underflow!
-        if true {
+        else {
             leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
                 ({
                     let index = data.iter().position(|entry| entry.key == key);
@@ -494,6 +495,44 @@ impl BTree {
         false
     }
 
+    pub fn right_borrow(&mut self, leaf: Rc<RefCell<BTreeNode>>, deleted_key: i32) {
+        let (first_right_node_key, entry_to_borrow, target_key) = leaf
+            .borrow_mut()
+            .next()
+            .as_ref()
+            .unwrap()
+            .borrow_mut()
+            .as_mut_leaf(|_, data, _| ((data[0].key), data.remove(0), data[0].key))
+            .unwrap();
+        leaf.borrow_mut().as_mut_leaf(|_, data, _| {
+            ({
+                data.push(entry_to_borrow);
+            })
+        });
+        let their_parent = leaf
+            .borrow()
+            .as_ref_leaf(|parent, _, _| {
+                (Rc::downgrade(&Rc::clone(&parent.as_ref().unwrap().upgrade().unwrap())))
+            })
+            .unwrap();
+        BTree::find_separator_key_and_replace(first_right_node_key, their_parent, target_key);
+    }
+
+    pub fn find_separator_key_and_replace(
+        right_key: i32,
+        parent: Weak<RefCell<BTreeNode>>,
+        target_key: i32,
+    ) {
+        if let BTreeNode::Internal {
+            parent: _,
+            keys: keys,
+            children: _,
+        } = &mut (*parent.upgrade().unwrap().borrow_mut())
+        {
+            let pos = keys.iter().position(|&target| target == right_key);
+            keys[pos.unwrap()] = target_key;
+        }
+    }
     /// TODO: DEBUG IMPLEMENTATION
     pub fn print_tree(&self) {
         if self.root.is_none() {
