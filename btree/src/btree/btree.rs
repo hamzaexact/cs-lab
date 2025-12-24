@@ -43,6 +43,14 @@ pub enum NodeCmpOrd {
     Greater,
 }
 
+pub enum DeletePlanner {
+    Simple,
+    RightBorrow,
+    LeftBorrow,
+    Merge,
+    Null,
+}
+
 impl BTree {
     pub fn new(order: usize) -> Self {
         Self { root: None, order }
@@ -462,40 +470,154 @@ impl BTree {
     ///
 
     pub fn delete(&mut self, key: i32) -> bool {
+        // Get Plan from DeletePlanner
+        //
+        //
         // Return the leaf that contains the key we're trying to delete.
         let leaf_rc = self.find_leaf(key);
-        // Simple check for the basic case, where a leaf node has sufficient parent_children
-        let state = leaf_rc
-            .borrow()
-            .as_ref_leaf(|_, keys, _| {
-                ((keys.len() - 1) as f32 >= ((self.order as f32 / 2_f32).round() - 1.0))
-            })
-            .unwrap(); // Unwrap because find_leaf  function MUST RETURN A LEAF
+        let plan = self.delete_planner(key, Rc::clone(&leaf_rc));
 
-        // Overflow if we executed this block
-        if !state {
-            println!("UNDERFLOW");
-            self.right_borrow(leaf_rc, key);
-        }
-        // TODO: Simple case
-        // I switched this to true to test the behaviour underflow!
-        else {
-            leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
-                ({
-                    let index = data.iter().position(|entry| entry.key == key);
-                    if index.is_none() {
-                        return false;
-                    }
-                    data.remove(index.unwrap());
-                    return true;
-                })
-            });
+        match plan {
+            DeletePlanner::Simple => {
+                println!("SIMPLE PLAN");
+                leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
+                    ({
+                        let index = data.iter().position(|entry| entry.key == key);
+                        if index.is_none() {
+                            return false;
+                        }
+                        data.remove(index.unwrap());
+                        return true;
+                    })
+                });
+            }
+
+            DeletePlanner::RightBorrow => {
+                println!("RIGHT PLAN");
+                return self.right_borrow(Rc::clone(&leaf_rc), key);
+            }
+
+            _ => {
+                println!("NOT YET PLAN")
+            }
         }
 
         false
     }
 
-    pub fn right_borrow(&mut self, leaf: Rc<RefCell<BTreeNode>>, deleted_key: i32) {
+    fn delete_planner(&mut self, key: i32, leaf_rc: Rc<RefCell<BTreeNode>>) -> DeletePlanner {
+        //
+        // TODO: Check the case for a direct removal scenario.
+        //
+        //
+        // Return the leaf that contains the key we're trying to delete.
+        // Simple check for the basic case, where a leaf node has sufficient parent_children
+        let state = leaf_rc.borrow().can_borrow(self.order);
+
+        if state {
+            return DeletePlanner::Simple;
+        }
+
+        // TODO: Check if we can do right borrow
+        // To make this work, we must first check
+        // if the last key of the current node is
+        // smaller than the most right key of its
+        // parent node. If so, we can then check
+        // if the right sibling has enough keys to borrow.
+        // if not we check for the left borrow.
+        if let BTreeNode::Leaf {
+            next: next,
+            data: leaf_data,
+            parent: parent,
+            ..
+        } = &mut *leaf_rc.borrow_mut()
+        {
+            //
+            // __*If there's no next node, we're the rightmost node.
+            if next.is_some() {
+                // Let's check if there are enough keys after a hypothetical borrow.
+                let next_rc = Rc::clone(&next.as_ref().unwrap());
+                let state = next_rc.borrow().can_borrow(self.order);
+                if state {
+                    // Here we get the first key of the current node
+                    // It must be smaller than any key the parent has.
+                    let last_curr_node_key = leaf_data.last().unwrap().key;
+                    let nodes_parent = self.get_node_parent(parent).upgrade().unwrap();
+
+                    if let BTreeNode::Internal {
+                        parent: _,
+                        keys: keys,
+                        children: _,
+                    } = &*nodes_parent.borrow()
+                    {
+                        if *keys.last().unwrap() > last_curr_node_key {
+                            return DeletePlanner::RightBorrow;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Since we couldn't borrow from the right node,
+        // let's check the left one (if it exists).
+        //
+        // We can check if we're not the leftmost node by comparing
+        // the first key of the current node with the first key of the parent,
+        // if the parent key is greater than the current's first key.
+        // If so, we're the leftmost.
+        // Example:
+        //
+        //          [20, 40]
+        //         /      \
+        //        /        \
+        //  [10,15]     [20, 30, 40]
+        //
+        //
+        // The first key to compare would be 20, since it's the first key at
+        // the parent node. We see they're equal, which is correct. However,
+        // if the key was 10, then 10 < 20, indicating we are the leftmost child node.
+        //
+        // NOTE: Since I'm not using this for any project, I'd like to use a quick trick to check if we are the leftmost node.
+        //
+        // We match the current leaf to the leftmost leaf using a helper function.
+        //
+        //
+        if !Rc::ptr_eq(&leaf_rc, self.leftmost_leaf().as_ref().unwrap()) {
+            //
+            //
+            // Check if the left child has enough keys to borrow.
+
+            if let BTreeNode::Leaf {
+                parent: parent,
+                data: leaf_data,
+                ..
+            } = &mut *leaf_rc.borrow_mut()
+            {
+                let curr_parent = self.get_node_parent(parent).upgrade().unwrap();
+                if let BTreeNode::Internal {
+                    parent: _,
+                    keys: parent_keys,
+                    children: parent_children,
+                } = &*curr_parent.borrow()
+                {
+                    let left_sibl_pos =
+                        (&parent_children.iter().position(|e| Rc::ptr_eq(e, &leaf_rc))).unwrap()
+                            - 1;
+
+                    let left_sibl = Rc::clone(&parent_children[left_sibl_pos]);
+                    // Check if it has enough keys
+
+                    if left_sibl.borrow().can_borrow(self.order) {
+                        return DeletePlanner::LeftBorrow;
+                    }
+                }
+            }
+        }
+
+        DeletePlanner::Null
+    }
+
+    pub fn right_borrow(&mut self, leaf: Rc<RefCell<BTreeNode>>, deleted_key: i32) -> bool {
         let (first_right_node_key, entry_to_borrow, target_key) = leaf
             .borrow_mut()
             .next()
@@ -504,11 +626,21 @@ impl BTree {
             .borrow_mut()
             .as_mut_leaf(|_, data, _| ((data[0].key), data.remove(0), data[0].key))
             .unwrap();
-        leaf.borrow_mut().as_mut_leaf(|_, data, _| {
-            ({
-                data.push(entry_to_borrow);
-            })
-        });
+        let mut leaf_mut = leaf.borrow_mut();
+        if let BTreeNode::Leaf {
+            parent: _,
+            data: data,
+            next: _,
+        } = &mut *leaf_mut
+        {
+            let key_to_delete = data.iter().position(|e| e.key == deleted_key);
+            if key_to_delete.is_none() {
+                return false;
+            }
+            data.remove(key_to_delete.unwrap());
+            data.push(entry_to_borrow);
+        }
+        drop(leaf_mut);
         let their_parent = leaf
             .borrow()
             .as_ref_leaf(|parent, _, _| {
@@ -516,6 +648,7 @@ impl BTree {
             })
             .unwrap();
         BTree::find_separator_key_and_replace(first_right_node_key, their_parent, target_key);
+        true
     }
 
     pub fn find_separator_key_and_replace(
@@ -748,6 +881,17 @@ impl BTreeNode {
 
         false
     }
+
+    pub fn can_borrow(&self, order: usize) -> bool {
+        match self {
+            BTreeNode::Leaf {
+                parent: _,
+                data: data,
+                next: _,
+            } => (data.len() - 1) as f32 >= (order as f32 / 2.0).round() - 1.0,
+            _ => todo!(),
+        }
+    }
 }
 
 impl Iterator for BTreeNode {
@@ -846,5 +990,54 @@ mod tests {
             },
             None => unreachable!(),
         }
+    }
+    #[test]
+    fn delete_simple_no_underflow() {
+        let mut t = BTree::new(5);
+
+        // Build tree
+        for k in [10, 20, 30, 40, 50] {
+            t.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        // Delete without underflow
+        t.delete(10);
+
+        // Remaining keys must exist
+        for k in [20, 30, 40, 50] {
+            assert!(t.search(k).is_some(), "Key {} missing", k);
+        }
+
+        // Deleted key must be gone
+        assert!(t.search(10).is_none());
+    }
+
+    #[test]
+    fn delete_triggers_right_borrow() {
+        let mut t = BTree::new(5);
+
+        // Force structure that will underflow on delete
+        for k in [10, 20, 30, 40, 50, 60, 70] {
+            t.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        // Delete to cause underflow in left leaf
+        t.delete(10);
+        t.delete(20);
+
+        // Validate all remaining keys exist
+        for k in [30, 40, 50, 60, 70] {
+            assert!(t.search(k).is_some(), "Key {} missing", k);
+        }
+
+        // Deleted keys must be gone
+        assert!(t.search(10).is_none());
+        assert!(t.search(20).is_none());
     }
 }
