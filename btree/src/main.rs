@@ -10,43 +10,28 @@ use std::rc::Rc;
 use std::time::Instant;
 
 fn main() {
-    //    /  ┌────┬────┐
-    //       │ 40 │ 70 │
-    //       └────┴────┘
-    //            │
-    //    ┌───────┴────────┐
-    // ┌────┬────┐     ┌────┬────┐
-    // │ 10 │ 20 │     │ 80 │ 90 │
-    // └────┴────┘     └────┴────┘
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    let mut t = BTree::new(3);
+    let mut t = BTree::new(5);
     let n = 1_000_000_usize;
     let mut rng = rand::thread_rng();
     let mut keys: Vec<i32> = (0..n as i32).collect();
     keys.shuffle(&mut rng);
 
-    // let keys = [10, 20, 30, 40, 50, 60, 70, 80, 90];
-    let keys = [10, 20, 30, 40, 50, 60, 70, 80];
-
+    let keys = [
+        10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
+        210,
+    ];
+    // let keys = [10, 20, 30, 40, 50, 60, 70, 80];
+    //
     insert_test(&mut t, &keys.clone().into(), n);
-    // search_test(&mut t, &keys.into(), &mut rng, n);
-
+    // // search_test(&mut t, &keys.into(), &mut rng, n);
+    //
     // t.delete(30);
+    // t.print_tree();
     // t.delete(50);
     // t.print_tree();
     // t.delete(40);
-    // t.print_tree();
-    // t.delete(60);
+    // // t.print_tree();
+    // // t.delete(60);
     t.print_tree();
 }
 

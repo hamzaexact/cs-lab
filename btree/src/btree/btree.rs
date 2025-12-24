@@ -478,7 +478,7 @@ impl BTree {
         let plan = self.delete_planner(key, Rc::clone(&leaf_rc));
 
         match plan {
-            DeletePlanner::Simple => {
+            (DeletePlanner::Simple, ..) => {
                 println!("SIMPLE PLAN");
                 leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
                     ({
@@ -492,12 +492,15 @@ impl BTree {
                 });
             }
 
-            DeletePlanner::RightBorrow => {
+            (DeletePlanner::RightBorrow, ..) => {
                 println!("RIGHT PLAN");
                 return self.right_borrow(Rc::clone(&leaf_rc), key);
             }
 
-            DeletePlanner::LeftBorrow => {}
+            (DeletePlanner::LeftBorrow, left_sibl, left_sibl_pos) => {
+                println!("LEFT PLAN");
+                return self.left_borrow(key, leaf_rc, left_sibl, left_sibl_pos);
+            }
 
             _ => {
                 println!("NOT YET PLAN")
@@ -507,7 +510,11 @@ impl BTree {
         false
     }
 
-    fn delete_planner(&mut self, key: i32, leaf_rc: Rc<RefCell<BTreeNode>>) -> DeletePlanner {
+    fn delete_planner(
+        &mut self,
+        key: i32,
+        leaf_rc: Rc<RefCell<BTreeNode>>,
+    ) -> (DeletePlanner, Rc<RefCell<BTreeNode>>, usize) {
         //
         // TODO: Check the case for a direct removal scenario.
         //
@@ -517,7 +524,7 @@ impl BTree {
         let state = leaf_rc.borrow().can_borrow(self.order);
 
         if state {
-            return DeletePlanner::Simple;
+            return (DeletePlanner::Simple, Rc::clone(&leaf_rc), 0x00);
         }
 
         // TODO: Check if we can do right borrow
@@ -553,7 +560,7 @@ impl BTree {
                     } = &*nodes_parent.borrow()
                     {
                         if *keys.last().unwrap() > last_curr_node_key {
-                            return DeletePlanner::RightBorrow;
+                            return (DeletePlanner::RightBorrow, Rc::clone(&leaf_rc), 0x01);
                         }
                     }
                 }
@@ -569,10 +576,10 @@ impl BTree {
         // If so, we're the leftmost.
         // Example:
         //
-        //          [20, 40]
+        //        [20 | 40]
         //         /      \
         //        /        \
-        //  [10,15]     [20, 30, 40]
+        //   [10, 15]   [20, 30, 40]
         //
         //
         // The first key to compare would be 20, since it's the first key at
@@ -610,13 +617,13 @@ impl BTree {
                     // Check if it has enough keys
 
                     if left_sibl.borrow().can_borrow(self.order) {
-                        return DeletePlanner::LeftBorrow;
+                        return (DeletePlanner::LeftBorrow, left_sibl, left_sibl_pos);
                     }
                 }
             }
         }
 
-        DeletePlanner::Null
+        (DeletePlanner::Null, Rc::clone(&leaf_rc), 0x03)
     }
 
     pub fn right_borrow(&mut self, leaf: Rc<RefCell<BTreeNode>>, deleted_key: i32) -> bool {
@@ -658,7 +665,42 @@ impl BTree {
         true
     }
 
-    pub fn left_borrow(&mut self, key: i32) {}
+    pub fn left_borrow(
+        &mut self,
+        key: i32,
+        leaf_rc: Rc<RefCell<BTreeNode>>,
+        left_sibl: Rc<RefCell<BTreeNode>>,
+        left_sibl_pos: usize,
+    ) -> bool {
+        let n = left_sibl.borrow_mut().as_mut_leaf(|_, left_sibl_data, _| {
+            (
+                // Get the right most key
+                {
+                    leaf_rc.borrow_mut().as_mut_leaf(|parent, data, _| {
+                        ({
+                            let pos: Option<_> = data.iter().position(|e| e.key == key);
+                            if pos.is_none() {
+                                return false;
+                            }
+                            let right_most_key = left_sibl_data.pop().unwrap();
+                            let right_most_key_key = right_most_key.key;
+                            data.remove(pos.unwrap());
+                            data.insert(0, right_most_key);
+                            if let BTreeNode::Internal { keys: keys, .. } =
+                                &mut *parent.as_ref().unwrap().upgrade().unwrap().borrow_mut()
+                            {
+                                keys[left_sibl_pos] = right_most_key_key;
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        })
+                    });
+                }
+            )
+        });
+        true
+    }
 
     pub fn find_separator_key_and_replace(
         right_key: i32,
@@ -1054,5 +1096,244 @@ mod tests {
         // Deleted keys must be gone
         assert!(t.search(10).is_none());
         assert!(t.search(20).is_none());
+    }
+    #[test]
+    fn delete_simple_no_underflow_2() {
+        let mut t = BTree::new(3);
+
+        for k in [10, 20, 30, 40] {
+            t.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        // Delete does NOT cause underflow
+        t.delete(20);
+
+        assert!(t.search(20).is_none());
+        assert!(t.search(10).is_some());
+        assert!(t.search(30).is_some());
+        assert!(t.search(40).is_some());
+    }
+    #[test]
+    fn delete_triggers_right_borrow_only() {
+        let mut t = BTree::new(3);
+
+        // This layout is intentional
+        for k in [10, 20, 30, 40, 50, 60] {
+            t.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        // Causes underflow in left leaf, right sibling has extra
+        t.delete(10);
+        t.delete(20);
+
+        // Tree must still contain remaining keys
+        for k in [30, 40, 50, 60] {
+            assert!(t.search(k).is_some(), "Missing key {}", k);
+        }
+
+        assert!(t.search(10).is_none());
+        assert!(t.search(20).is_none());
+    }
+    #[test]
+    fn delete_triggers_left_borrow_only() {
+        let mut t = BTree::new(3);
+
+        for k in [10, 20, 30, 40, 50, 60, 70, 80] {
+            t.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        // Shape is now stable
+        t.delete(30); // simple
+        t.delete(50); // simple
+        t.delete(40); // left borrow
+
+        for k in [10, 20, 60, 70, 80] {
+            assert!(t.search(k).is_some(), "Missing key {}", k);
+        }
+
+        for k in [30, 40, 50] {
+            assert!(t.search(k).is_none());
+        }
+    }
+    #[test]
+    fn mixed_simple_and_borrow_deletes_no_merge() {
+        let mut t = BTree::new(3);
+
+        for k in [10, 20, 30, 40, 50, 60, 70] {
+            t.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        t.delete(10); // right borrow
+        t.delete(40); // simple
+        t.delete(60); // simple
+
+        for k in [20, 30, 50, 70] {
+            assert!(t.search(k).is_some());
+        }
+
+        for k in [10, 40, 60] {
+            assert!(t.search(k).is_none());
+        }
+    }
+    fn build_tree_order3() -> BTree {
+        let mut tree = BTree::new(3);
+        for k in [10, 20, 30, 40, 50, 60] {
+            tree.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+        tree
+    }
+
+    fn build_tree_order5() -> BTree {
+        let mut tree = BTree::new(5);
+        for k in (10..=80).step_by(5) {
+            tree.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+        tree
+    }
+    #[test]
+    fn delete_simple_no_underflow_3() {
+        let mut tree = build_tree_order3();
+
+        tree.delete(60);
+        assert!(tree.search(60).is_none());
+
+        for k in [10, 20, 30, 40, 50] {
+            assert!(tree.search(k).is_some());
+        }
+    }
+    #[test]
+    fn delete_simple_multiple() {
+        let mut tree = build_tree_order3();
+
+        tree.delete(20);
+        tree.delete(30);
+
+        assert!(tree.search(20).is_none());
+        assert!(tree.search(30).is_none());
+
+        for k in [10, 40, 50, 60] {
+            assert!(tree.search(k).is_some());
+        }
+    }
+    #[test]
+    fn delete_triggers_right_borrow_2() {
+        let mut tree = BTree::new(3);
+
+        for k in [10, 20, 30, 40, 50, 60] {
+            tree.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        tree.delete(10);
+        tree.delete(20);
+
+        assert!(tree.search(10).is_none());
+        assert!(tree.search(20).is_none());
+
+        for k in [30, 40, 50, 60] {
+            assert!(tree.search(k).is_some());
+        }
+    }
+    #[test]
+    fn right_borrow_updates_parent_separator() {
+        let mut tree = BTree::new(5);
+
+        for k in [10, 20, 25, 30, 40, 45, 50] {
+            tree.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        tree.delete(10);
+
+        for k in [20, 25, 30, 40, 45, 50] {
+            assert!(tree.search(k).is_some());
+        }
+    }
+    #[test]
+    fn left_borrow_preserves_search() {
+        let mut tree = BTree::new(5);
+
+        for k in [10, 15, 20, 25, 30, 35, 40] {
+            tree.insert(Entry {
+                key: k,
+                data: k.to_string(),
+            });
+        }
+
+        tree.delete(40);
+        tree.delete(35);
+
+        for k in [10, 15, 20, 25, 30] {
+            assert!(tree.search(k).is_some());
+        }
+    }
+    #[test]
+    fn delete_nonexistent_key() {
+        let mut tree = build_tree_order3();
+
+        tree.delete(999);
+
+        for k in [10, 20, 30, 40, 50, 60] {
+            assert!(tree.search(k).is_some());
+        }
+    }
+    #[test]
+    fn delete_and_reinsert() {
+        let mut tree = build_tree_order3();
+
+        tree.delete(30);
+        assert!(tree.search(30).is_none());
+
+        tree.insert(Entry {
+            key: 30,
+            data: "30".to_string(),
+        });
+
+        assert!(tree.search(30).is_some());
+    }
+    #[test]
+    fn many_simple_deletes() {
+        let mut tree = BTree::new(5);
+        let n = 100;
+        for i in 0..n {
+            tree.insert(Entry {
+                key: i,
+                data: i.to_string(),
+            });
+        }
+
+        for i in (0..n).step_by(3) {
+            tree.delete(i);
+        }
+
+        for i in (0..n).step_by(3) {
+            assert!(tree.search(i).is_none());
+        }
+
+        for i in (1..n).step_by(3) {
+            assert!(tree.search(i).is_some());
+        }
     }
 }
