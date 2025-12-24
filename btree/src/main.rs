@@ -20,8 +20,6 @@ fn main() {
         10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
         210,
     ];
-    // let keys = [10, 20, 30, 40, 50, 60, 70, 80];
-    //
     insert_test(&mut t, &keys.clone().into(), n);
     // // search_test(&mut t, &keys.into(), &mut rng, n);
     //

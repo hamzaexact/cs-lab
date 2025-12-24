@@ -1,5 +1,6 @@
 use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell},
+    collections::hash_map::Keys,
     ptr,
     rc::{Rc, Weak},
 };
@@ -948,6 +949,122 @@ impl BTreeNode {
             } => (data.len() - 1) as f32 >= (order as f32 / 2.0).round() - 1.0,
             _ => todo!(),
         }
+    }
+
+    pub fn left_sibling(node_rc: Rc<RefCell<BTreeNode>>) -> Option<Rc<RefCell<BTreeNode>>> {
+        if node_rc.borrow().is_leaf() {
+            if let BTreeNode::Leaf { parent, data, .. } = &*node_rc.borrow() {
+                if parent.is_none() {
+                    return None;
+                }
+                let curr_nd_prnt = parent.as_ref().unwrap().upgrade().unwrap();
+                if let BTreeNode::Internal {
+                    parent: _,
+                    keys: keys,
+                    children: prnt_children,
+                } = &*curr_nd_prnt.borrow()
+                {
+                    let pos = keys.iter().position(|key| *key == data[0].key);
+                    // means we are the left_most
+                    if pos.is_none() {
+                        return None;
+                    }
+
+                    return Some(Rc::clone(&prnt_children[pos.unwrap()]));
+                }
+            }
+        };
+
+        if let BTreeNode::Internal {
+            parent: parent,
+            children: children,
+            ..
+        } = &*node_rc.borrow()
+        {
+            if parent.is_none() {
+                return None;
+            }
+            let prnt = parent.as_ref().unwrap().upgrade().unwrap();
+            if let BTreeNode::Internal {
+                children: prnt_ch, ..
+            } = &*prnt.borrow()
+            {
+                let pos = prnt_ch
+                    .iter()
+                    .position(|child| Rc::ptr_eq(child, &node_rc))
+                    .unwrap();
+
+                if (pos == 0) {
+                    return None;
+                }
+
+                return Some(Rc::clone(&prnt_ch[pos]));
+            }
+        }
+        None
+    }
+
+    pub fn right_sibling(node_rc: Rc<RefCell<BTreeNode>>) -> Option<Rc<RefCell<BTreeNode>>> {
+        if node_rc.borrow().is_leaf() {
+            if let BTreeNode::Leaf {
+                parent: curr_prnt,
+                data: curr_data,
+                next: nxt,
+            } = &*node_rc.borrow()
+            {
+                // RIGHT MOST
+                if nxt.is_none() {
+                    return None;
+                }
+
+                // HAS NO RIGHT YET
+                if curr_prnt.is_none() {
+                    return None;
+                }
+
+                let prnt = Rc::clone(&curr_prnt.as_ref().unwrap().upgrade().unwrap());
+
+                if let BTreeNode::Internal {
+                    children: children, ..
+                } = &*prnt.borrow()
+                {
+                    let pos = children
+                        .iter()
+                        .position(|child| Rc::ptr_eq(child, &node_rc))
+                        .unwrap()
+                        + 1;
+
+                    return Some(Rc::clone(&children[pos]));
+                }
+            }
+        }
+
+        if let BTreeNode::Internal {
+            parent: parent,
+            children: children,
+            ..
+        } = &*node_rc.borrow()
+        {
+            if parent.is_none() {
+                return None;
+            }
+
+            let prnt = parent.as_ref().unwrap().upgrade().unwrap();
+            if let BTreeNode::Internal {
+                children: prnt_ch, ..
+            } = &*prnt.borrow()
+            {
+                let pos = prnt_ch
+                    .iter()
+                    .position(|child| Rc::ptr_eq(child, &node_rc))
+                    .unwrap()
+                    + 1;
+
+                return Some(Rc::clone(&prnt_ch[pos]));
+            }
+        }
+
+        None
     }
 }
 
