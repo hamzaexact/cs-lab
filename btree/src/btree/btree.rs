@@ -43,7 +43,6 @@ pub enum NodeCmpOrd {
     Greater,
 }
 
-
 impl BTree {
     pub fn new(order: usize) -> Self {
         Self { root: None, order }
@@ -112,7 +111,6 @@ impl BTree {
 
         None
     }
-
 
     ///
     ///
@@ -229,11 +227,10 @@ impl BTree {
             .unwrap()
     }
 
-
     fn split_leaf(&mut self, leaf: Rc<RefCell<BTreeNode>>) {
         let mut overflowed_parent: Option<Rc<RefCell<BTreeNode>>> = None;
         let mut mut_leaf_ptr = leaf.borrow_mut();
-        
+
         // BORROW START HERE IN ACTION
         if let BTreeNode::Leaf {
             parent: left_child_parent,
@@ -463,6 +460,41 @@ impl BTree {
     ///
     ///
     ///
+
+    pub fn delete(&mut self, key: i32) -> bool {
+        // Return the leaf that contains the key we're trying to delete.
+        let leaf_rc = self.find_leaf(key);
+        // Simple check for the basic case, where a leaf node has sufficient parent_children
+        let state = leaf_rc
+            .borrow()
+            .as_ref_leaf(|_, keys, _| {
+                ((keys.len() - 1) as f32 >= ((self.order as f32 / 2_f32).round() - 1.0))
+            })
+            .unwrap(); // Unwrap because find_leaf  function MUST RETURN A LEAF
+
+        // Overflow if we executed this block
+        if !state {}
+
+
+        // TODO: Simple case
+        // I switched this to true to test the behaviour underflow!
+        if true {
+            leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
+                ({
+                    let index = data.iter().position(|entry| entry.key == key);
+                    if index.is_none() {
+                        return false;
+                    }
+                    data.remove(index.unwrap());
+                    return true;
+                })
+            });
+        }
+
+        false
+    }
+
+    /// TODO: DEBUG IMPLEMENTATION
     pub fn print_tree(&self) {
         if self.root.is_none() {
             println!("<empty tree>");
@@ -777,5 +809,3 @@ mod tests {
         }
     }
 }
-
-
