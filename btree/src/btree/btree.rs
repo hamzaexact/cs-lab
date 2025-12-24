@@ -497,6 +497,8 @@ impl BTree {
                 return self.right_borrow(Rc::clone(&leaf_rc), key);
             }
 
+            DeletePlanner::LeftBorrow => {}
+
             _ => {
                 println!("NOT YET PLAN")
             }
@@ -647,14 +649,22 @@ impl BTree {
                 (Rc::downgrade(&Rc::clone(&parent.as_ref().unwrap().upgrade().unwrap())))
             })
             .unwrap();
-        BTree::find_separator_key_and_replace(first_right_node_key, their_parent, target_key);
+        BTree::find_separator_key_and_replace(
+            first_right_node_key,
+            their_parent,
+            target_key,
+            DeletePlanner::RightBorrow,
+        );
         true
     }
+
+    pub fn left_borrow(&mut self, key: i32) {}
 
     pub fn find_separator_key_and_replace(
         right_key: i32,
         parent: Weak<RefCell<BTreeNode>>,
         target_key: i32,
+        mode: DeletePlanner,
     ) {
         if let BTreeNode::Internal {
             parent: _,
@@ -662,8 +672,13 @@ impl BTree {
             children: _,
         } = &mut (*parent.upgrade().unwrap().borrow_mut())
         {
-            let pos = keys.iter().position(|&target| target == right_key);
-            keys[pos.unwrap()] = target_key;
+            match mode {
+                DeletePlanner::RightBorrow => {
+                    let pos = keys.iter().position(|&target| target == right_key);
+                    keys[pos.unwrap()] = target_key;
+                }
+                _ => unreachable!(),
+            }
         }
     }
     /// TODO: DEBUG IMPLEMENTATION

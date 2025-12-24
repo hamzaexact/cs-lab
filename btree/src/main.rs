@@ -10,6 +10,25 @@ use std::rc::Rc;
 use std::time::Instant;
 
 fn main() {
+    //    /  ┌────┬────┐
+    //       │ 40 │ 70 │
+    //       └────┴────┘
+    //            │
+    //    ┌───────┴────────┐
+    // ┌────┬────┐     ┌────┬────┐
+    // │ 10 │ 20 │     │ 80 │ 90 │
+    // └────┴────┘     └────┴────┘
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
     let mut t = BTree::new(3);
     let n = 1_000_000_usize;
     let mut rng = rand::thread_rng();
@@ -22,10 +41,10 @@ fn main() {
     insert_test(&mut t, &keys.clone().into(), n);
     // search_test(&mut t, &keys.into(), &mut rng, n);
 
-    t.delete(30);
-    t.delete(50);
-    t.print_tree();
-    t.delete(40);
+    // t.delete(30);
+    // t.delete(50);
+    // t.print_tree();
+    // t.delete(40);
     // t.print_tree();
     // t.delete(60);
     t.print_tree();
