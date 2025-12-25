@@ -1,6 +1,12 @@
+//
+//
+//
 #![allow(warnings)]
+//
+//
+//
 mod btree;
-use btree::btree::{BTree, BTreeNode, Entry, LeafNode, NodeCmpOrd};
+use btree::btree::{BTree, Entry, LeafNode, NodeCmpOrd};
 use rand::prelude::*;
 use rand::seq::SliceRandom;
 use rand::{random, *};
@@ -20,16 +26,19 @@ fn main() {
         10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
         210,
     ];
+
     insert_test(&mut t, &keys.clone().into(), n);
     // // search_test(&mut t, &keys.into(), &mut rng, n);
     //
-    // t.delete(30);
+    t.delete(30);
     // t.print_tree();
-    // t.delete(50);
+    t.delete(60);
     // t.print_tree();
-    // t.delete(40);
-    // // t.print_tree();
-    // // t.delete(60);
+    t.delete(90);
+    t.print_tree();
+    t.delete(10);
+    // let left_most = t.leftmost_leaf();
+    // dbg!(left_most);
     t.print_tree();
 }
 
@@ -47,7 +56,6 @@ fn insert_test(t: &mut BTree, keys: &Vec<i32>, n: usize) {
 fn search_test(t: &mut BTree, keys: &Vec<i32>, mut rng: &mut ThreadRng, n: usize) {
     // println!("SEARCHING {} random keys...", n);
     let start_search = Instant::now();
-
     for _ in 0..keys.len() {
         let k = rng.gen_range(0..n as i32);
         let res = t.search(k);

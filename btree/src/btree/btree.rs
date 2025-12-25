@@ -49,7 +49,6 @@ pub enum DeletePlanner {
     RightBorrow,
     LeftBorrow,
     Merge,
-    Null,
 }
 
 impl BTree {
@@ -504,7 +503,8 @@ impl BTree {
             }
 
             _ => {
-                println!("NOT YET PLAN")
+                println!("MERGE PLAN");
+                return self.merge_leaf(leaf_rc, key);
             }
         }
 
@@ -522,6 +522,7 @@ impl BTree {
         //
         // Return the leaf that contains the key we're trying to delete.
         // Simple check for the basic case, where a leaf node has sufficient parent_children
+        //
         let state = leaf_rc.borrow().can_borrow(self.order);
 
         if state {
@@ -624,7 +625,7 @@ impl BTree {
             }
         }
 
-        (DeletePlanner::Null, Rc::clone(&leaf_rc), 0x03)
+        (DeletePlanner::Merge, Rc::clone(&leaf_rc), 0x03)
     }
 
     pub fn right_borrow(&mut self, leaf: Rc<RefCell<BTreeNode>>, deleted_key: i32) -> bool {
@@ -700,6 +701,89 @@ impl BTree {
                 }
             )
         });
+        true
+    }
+
+    pub fn merge_leaf(&mut self, leaf_rc: Rc<RefCell<BTreeNode>>, key: i32) -> bool {
+        let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
+        // We are the left most
+        if left_sibl.is_none() {
+            // Delete the key
+            // Merge with right
+            let (right_sibl, parent_k_pos) = BTreeNode::right_sibling(Rc::clone(&leaf_rc)).unwrap();
+            if let BTreeNode::Leaf {
+                parent: l_prnt,
+                data,
+                next,
+            } = &mut *right_sibl.borrow_mut()
+            {
+                if let BTreeNode::Leaf {
+                    data: curr_node_data,
+                    next: curr_next,
+                    ..
+                } = &mut *leaf_rc.borrow_mut()
+                {
+                    let k_to_rm = curr_node_data.iter().position(|e| e.key == key);
+                    if k_to_rm.is_none() {
+                        return false;
+                    }
+                    curr_node_data.remove(k_to_rm.unwrap());
+                    for (i, e) in curr_node_data.into_iter().enumerate() {
+                        data.insert(i, e.clone());
+                    }
+
+                    let t_prnt = l_prnt.as_ref().unwrap().upgrade().unwrap();
+                    if let BTreeNode::Internal { keys, children, .. } = &mut *t_prnt.borrow_mut() {
+                        keys.remove(0);
+                        children.remove(0);
+                        if (self.order as f32 / 2_f32).ceil() - 1_f32 > keys.len() as f32 {
+                            // TODO: PARENT OVERFLOW
+                            println!("PARENT OVERFLOW")
+                        }
+                    }
+                }
+            }
+        }
+
+        if left_sibl.is_some() {
+            let (left_sibling, curr_left_sib_pos) = left_sibl.unwrap();
+            if let BTreeNode::Leaf {
+                parent: l_prnt,
+                data,
+                next,
+            } = &mut *left_sibling.borrow_mut()
+            {
+                if let BTreeNode::Leaf {
+                    data: curr_node_data,
+                    next: curr_next,
+                    ..
+                } = &mut *leaf_rc.borrow_mut()
+                {
+                    let k_to_rm = curr_node_data.iter().position(|e| e.key == key);
+                    if k_to_rm.is_none() {
+                        return false;
+                    }
+                    curr_node_data.remove(k_to_rm.unwrap());
+                    data.append(curr_node_data);
+                    if curr_next.is_none() {
+                        *next = None
+                    } else {
+                        let new_next = Rc::clone(&curr_next.as_ref().unwrap());
+                        *next = Some(new_next);
+                    }
+
+                    let t_prnt = l_prnt.as_ref().unwrap().upgrade().unwrap();
+                    if let BTreeNode::Internal { keys, children, .. } = &mut *t_prnt.borrow_mut() {
+                        keys.remove(curr_left_sib_pos);
+                        children.remove(curr_left_sib_pos + 1);
+                        if (self.order as f32 / 2_f32).ceil() - 1_f32 > keys.len() as f32 {
+                            // TODO: PARENT OVERFLOW
+                            println!("PARENT OVERFLOW")
+                        }
+                    }
+                }
+            }
+        }
         true
     }
 
@@ -951,7 +1035,9 @@ impl BTreeNode {
         }
     }
 
-    pub fn left_sibling(node_rc: Rc<RefCell<BTreeNode>>) -> Option<Rc<RefCell<BTreeNode>>> {
+    pub fn left_sibling(
+        node_rc: Rc<RefCell<BTreeNode>>,
+    ) -> Option<(Rc<RefCell<BTreeNode>>, usize)> {
         if node_rc.borrow().is_leaf() {
             if let BTreeNode::Leaf { parent, data, .. } = &*node_rc.borrow() {
                 if parent.is_none() {
@@ -970,7 +1056,7 @@ impl BTreeNode {
                         return None;
                     }
 
-                    return Some(Rc::clone(&prnt_children[pos.unwrap()]));
+                    return Some((Rc::clone(&prnt_children[pos.unwrap()]), pos.unwrap()));
                 }
             }
         };
@@ -998,13 +1084,15 @@ impl BTreeNode {
                     return None;
                 }
 
-                return Some(Rc::clone(&prnt_ch[pos]));
+                return Some((Rc::clone(&prnt_ch[pos - 1]), pos - 1));
             }
         }
         None
     }
 
-    pub fn right_sibling(node_rc: Rc<RefCell<BTreeNode>>) -> Option<Rc<RefCell<BTreeNode>>> {
+    pub fn right_sibling(
+        node_rc: Rc<RefCell<BTreeNode>>,
+    ) -> Option<(Rc<RefCell<BTreeNode>>, usize)> {
         if node_rc.borrow().is_leaf() {
             if let BTreeNode::Leaf {
                 parent: curr_prnt,
@@ -1034,7 +1122,7 @@ impl BTreeNode {
                         .unwrap()
                         + 1;
 
-                    return Some(Rc::clone(&children[pos]));
+                    return Some((Rc::clone(&children[pos]), pos));
                 }
             }
         }
@@ -1049,19 +1137,12 @@ impl BTreeNode {
                 return None;
             }
 
-            let prnt = parent.as_ref().unwrap().upgrade().unwrap();
-            if let BTreeNode::Internal {
-                children: prnt_ch, ..
-            } = &*prnt.borrow()
-            {
-                let pos = prnt_ch
-                    .iter()
-                    .position(|child| Rc::ptr_eq(child, &node_rc))
-                    .unwrap()
-                    + 1;
-
-                return Some(Rc::clone(&prnt_ch[pos]));
-            }
+            let pos = children
+                .iter()
+                .position(|child| Rc::ptr_eq(child, &node_rc))
+                .unwrap()
+                + 1;
+            return Some((Rc::clone(&children[pos]), pos));
         }
 
         None
