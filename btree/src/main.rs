@@ -1,7 +1,6 @@
 //
 //
 //
-#![allow(warnings)]
 //
 //
 //
@@ -176,8 +175,8 @@ fn test_mixed_workload(n: usize, order: usize) {
     let start = Instant::now();
 
     for _ in 0..ops {
-        let op = rng.gen_range(0..100);
-        let key = rng.gen_range(0..n as i32);
+        let op = rng.random_range(0..100);
+        let key = rng.random_range(0..n as i32);
 
         if op < 70 {
             // 70% search
@@ -263,7 +262,7 @@ fn test_range_queries(n: usize, order: usize) {
 
     let start = Instant::now();
     for _ in 0..ranges {
-        let start_key = rng.gen_range(0..(n - range_size) as i32);
+        let start_key = rng.random_range(0..(n - range_size) as i32);
         for key in start_key..(start_key + range_size as i32) {
             let _ = tree.search(key);
         }
@@ -300,12 +299,12 @@ fn test_skewed_access(n: usize, order: usize) {
 
     let start = Instant::now();
     for _ in 0..ops {
-        let key = if rng.gen_range(0..100) < 80 {
+        let key = if rng.random_range(0..100) < 80 {
             // 80% - access hot keys
-            rng.gen_range(0..hot_keys as i32)
+            rng.random_range(0..hot_keys as i32)
         } else {
             // 20% - access all keys
-            rng.gen_range(0..n as i32)
+            rng.random_range(0..n as i32)
         };
         let _ = tree.search(key);
     }

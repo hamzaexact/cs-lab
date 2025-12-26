@@ -1,8 +1,5 @@
 use std::{
-    cell::{Ref, RefCell},
-    collections::hash_map::Keys,
-    io::Empty,
-    ptr,
+    cell::{RefCell},
     rc::{Rc, Weak},
 };
 
@@ -27,6 +24,7 @@ pub enum BTreeNode {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct LeafNode<'l> {
     // 'l => leaf
     pub parent: &'l mut Option<Weak<RefCell<BTreeNode>>>,
@@ -34,15 +32,17 @@ pub struct LeafNode<'l> {
     pub next: &'l mut Option<Rc<RefCell<BTreeNode>>>,
 }
 
-#[derive(Debug, Clone, Default)]
+
+#[allow(dead_code)]
+#[derive(Debug,Clone)]
 pub struct Entry {
     pub key: i32,
     pub data: String,
 }
 
+#[allow(dead_code)]
 pub enum NodeCmpOrd {
     Less,
-    Greater,
 }
 
 pub enum DeletePlanner {
@@ -64,7 +64,7 @@ impl BTree {
     //
     //
     //
-    pub fn is_empty(&self) -> bool {
+    pub fn _is_empty(&self) -> bool {
         if self.root.is_none() {
             return true;
         }
@@ -79,42 +79,37 @@ impl BTree {
         }
 
         let mut current = self.root.as_ref().map(Rc::clone).unwrap();
-        let entry = loop {
+        let _ = loop {
             let next = {
                 let node = current.borrow();
                 match &*node {
                     BTreeNode::Internal {
                         parent: _,
-                        keys: keys,
-                        children: children,
+                        keys,
+                        children,
                     } => {
-                        // ELIMINATE CANDIDATES BASED ON MODULES OPERATOR AND THEIR LENGTH
-                        // OR USE BINARY search
-                        //
                         let mut chosen = None;
-
+                        //
+                        // NOTE: I should have used binary search here,
+                        // but for simplicity's sake, I used a linear search instead.
+                        //
                         for (index, num) in keys.iter().enumerate() {
                             if key < *num {
                                 chosen = Some(Rc::clone(&children[index]));
                                 break;
                             }
                         }
-
                         chosen.unwrap_or_else(|| Rc::clone(children.last().unwrap()))
                     }
-
                     BTreeNode::Leaf {
-                        parent: _,
-                        data: entires,
-                        next,
-                    } => {
+                        ..
+                         } => {
                         break;
                     }
                 }
             };
             current = next;
         };
-
         if let BTreeNode::Leaf {
             parent: _,
             data: entries,
@@ -141,8 +136,7 @@ impl BTree {
     ///
 
     pub fn insert(&mut self, entry: Entry) {
-        let mut leaf = self.find_leaf(entry.key);
-        let tmp = entry.clone();
+        let  leaf = self.find_leaf(entry.key);
         if let BTreeNode::Leaf {
             parent: _,
             data: keys,
@@ -150,8 +144,6 @@ impl BTree {
         } = &mut *leaf.borrow_mut()
         {
             keys.push(entry);
-            // DEBUG:
-            // println!("key with value {} INSERTED into {:?}", tmp.key, keys);
             keys.sort_by_key(|k| k.key);
         }
         let is_leaf = (*leaf.borrow()).is_leaf();
@@ -161,15 +153,12 @@ impl BTree {
                 self.split_leaf(Rc::clone(&leaf));
                 match &*leaf.borrow() {
                     BTreeNode::Leaf {
-                        parent: pare,
-                        data: d,
-                        next: _,
+                        ..
                     } => {
                         let current = self.root.as_ref().map(Rc::clone).unwrap();
                         if let BTreeNode::Internal {
                             parent: _,
-                            keys: keys,
-                            children: children,
+                            ..
                         } = &*current.borrow()
                         {
                             // if keys.len() >= 3 {
@@ -227,7 +216,7 @@ impl BTree {
 
         leaf
     }
-
+    
     fn get_node_parent(
         &mut self,
         parent: &mut Option<Weak<RefCell<BTreeNode>>>,
@@ -254,7 +243,7 @@ impl BTree {
         if let BTreeNode::Leaf {
             parent: left_child_parent,
             data: left_keys,
-            next: next,
+            next,
         } = &mut *mut_leaf_ptr
         // INSIDE THE GIVEN LEAF NODE THAT HAS THE OVER FLOW
         {
@@ -288,7 +277,6 @@ impl BTree {
                     tmp
                 };
 
-                let mut_right_ptr = right_child.borrow_mut();
                 *left_child_parent = Some(Rc::downgrade(&ptr_leaf_parent));
                 *next = Some(Rc::clone(&right_child));
                 if parent_children.is_empty() {
@@ -418,7 +406,7 @@ impl BTree {
                     //     *leaf.parent = Some(Rc::downgrade(&right_node));
                     // }
 
-                    if let Some(res) = (*child_node).as_mut_leaf(|parent, _, _| {
+                    if let Some(_) = (*child_node).as_mut_leaf(|parent, _, _| {
                         *parent = Some(Rc::downgrade(&right_node));
                     }) {}
                     // *k.parent = Some(Rc::downgrade(&right_node));
@@ -490,14 +478,14 @@ impl BTree {
         // Check if its the root
         if Rc::ptr_eq(&leaf_rc, self.root.as_ref().unwrap()) {
             let state = leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
-                ({
+                {
                     let index = data.iter().position(|entry| entry.key == key);
                     if index.is_none() {
                         return false;
                     }
                     data.remove(index.unwrap());
                     return true;
-                })
+                }
             });
 
             if state.unwrap() {
@@ -516,14 +504,14 @@ impl BTree {
             (DeletePlanner::Simple, ..) => {
                 // println!("SIMPLE PLAN");
                 leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
-                    ({
+                    {
                         let index = data.iter().position(|entry| entry.key == key);
                         if index.is_none() {
                             return false;
                         }
                         data.remove(index.unwrap());
                         return true;
-                    })
+                    }
                 });
             }
 
@@ -548,7 +536,7 @@ impl BTree {
 
     fn delete_planner(
         &mut self,
-        key: i32,
+        _: i32,
         leaf_rc: Rc<RefCell<BTreeNode>>,
     ) -> (DeletePlanner, Rc<RefCell<BTreeNode>>, usize) {
         // TODO: Check If its Empty
@@ -557,7 +545,7 @@ impl BTree {
         if let BTreeNode::Internal {
             parent,
             keys,
-            children,
+            ..
         } = &*leaf_rc.borrow()
         {
             // ITS A ROOT
@@ -570,7 +558,7 @@ impl BTree {
 
         let tmp_borrow = leaf_rc.borrow();
 
-        if let BTreeNode::Leaf { parent, data, next } = &*tmp_borrow {
+        if let BTreeNode::Leaf { parent, data, .. } = &*tmp_borrow {
             // ITS A ROOT
             if parent.is_none() {
                 if data.is_empty() {
@@ -637,7 +625,10 @@ impl BTree {
         // the parent node. We see they're equal, which is correct. However,
         // if the key was 10, then 10 < 20, indicating we are the leftmost child node.
         //
-        // NOTE: Since I'm not using this for any project, I'd like to use a quick trick to check if we are the leftmost node.
+        // NOTE: Since I'm not using this for any project,
+        // I'd like to use a quick trick to check if we are the leftmost node. 
+        // NOTE:
+        // (THAT TRICK WERE REMOVED WHILE DEBUGGING)
         //
         // We match the current leaf to the leftmost leaf using a helper function.
         //
@@ -691,7 +682,7 @@ impl BTree {
         left_sibl: Rc<RefCell<BTreeNode>>,
         left_sibl_pos: usize,
     ) -> bool {
-        if let BTreeNode::Leaf { parent, data, next } = &mut *leaf_rc.borrow_mut() {
+        if let BTreeNode::Leaf { parent, data, .. } = &mut *leaf_rc.borrow_mut() {
             let key_to_delete = data.iter().position(|e| e.key == key);
             if key_to_delete.is_none() {
                 return false;
@@ -721,10 +712,9 @@ impl BTree {
         let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
         // We are the left most
         if left_sibl.is_none() {
-            // println!("INSIDE RIGHT SIBL FOR BORROWING");
             // Delete the key
             // Merge with right
-            let (right_sibl, parent_k_pos) = BTreeNode::right_sibling(Rc::clone(&leaf_rc)).unwrap();
+            let (right_sibl, _) = BTreeNode::right_sibling(Rc::clone(&leaf_rc)).unwrap();
             let mut tmp_r_borrow = right_sibl.borrow_mut();
             if let BTreeNode::Leaf {
                 parent: l_prnt,
@@ -745,9 +735,6 @@ impl BTree {
                     }
                     curr_node_data.remove(k_to_rm.unwrap());
                     curr_node_data.append(data);
-                    // for (i, e) in curr_node_data.into_iter().enumerate() {
-                    //     data.insert(i, e.clone());
-                    // }
 
                     if next.is_none() {
                         *curr_next = None;
@@ -777,7 +764,6 @@ impl BTree {
         }
         // __LOC
         else if left_sibl.is_some() {
-            // println!("INSIDE LEFT SIBLE FOR BORROWING");
             let (left_sibling, curr_left_sib_pos) = left_sibl.unwrap();
             let mut tmp_left_borrow = left_sibling.borrow_mut();
             if let BTreeNode::Leaf {
@@ -828,30 +814,8 @@ impl BTree {
         true
     }
 
-    pub fn find_separator_key_and_replace(
-        right_key: i32,
-        parent: Weak<RefCell<BTreeNode>>,
-        target_key: i32,
-        mode: DeletePlanner,
-    ) {
-        if let BTreeNode::Internal {
-            parent: _,
-            keys: keys,
-            children: _,
-        } = &mut (*parent.upgrade().unwrap().borrow_mut())
-        {
-            match mode {
-                DeletePlanner::RightBorrow => {
-                    let pos = keys.iter().position(|&target| target == right_key);
-                    keys[pos.unwrap()] = target_key;
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
 
     fn fix_parent_underflow(&mut self, node_rc: Rc<RefCell<BTreeNode>>) {
-        // ================= ROOT CASE =================
         {
             let node = node_rc.borrow();
             if let BTreeNode::Internal {
@@ -875,11 +839,9 @@ impl BTree {
             }
         }
 
-        // ================= TRY BORROW =================
         let left = BTreeNode::left_sibling(Rc::clone(&node_rc));
 
         if left.is_none() {
-            //  println!("INSIDE MERGE PARENT EXACTLY AT RIGHT BORROW");
             if let Some((right, _)) = BTreeNode::right_sibling(Rc::clone(&node_rc)) {
                 if right.borrow().can_borrow(self.order) {
                     let sep_idx;
@@ -941,12 +903,10 @@ impl BTree {
 
                     return;
                 }
-                //   println!("RIGHT BORROW FAILS");
             }
         }
 
         if let Some((left_sib, _)) = left {
-            // println!("INSIDE MERGE PARENT EXACTLY AT LEFT BORROW");
             if left_sib.borrow().can_borrow(self.order) {
                 let sep_idx;
                 let parent_rc;
@@ -1005,11 +965,9 @@ impl BTree {
 
                 return;
             } else {
-                //    println!("LEFT BORROW FAILS");
             }
         }
 
-        //  println!("MERGE **PARENT");
 
         let parent_rc = {
             let node = node_rc.borrow();
@@ -1130,7 +1088,7 @@ impl BTree {
         }
     }
     /// TODO: DEBUG IMPLEMENTATION
-    pub fn print_tree(&self) {
+    pub fn _print_tree(&self) {
         if self.root.is_none() {
             println!("<empty tree>");
             return;
@@ -1157,7 +1115,7 @@ impl BTree {
                         }
                     }
 
-                    BTreeNode::Leaf { data, next, .. } => {
+                    BTreeNode::Leaf { data,  .. } => {
                         // Print leaf node keys
                         let keys: Vec<_> = data.iter().map(|e| e.key).collect();
                         print!("(L [{:?}]) ", keys);
@@ -1171,7 +1129,7 @@ impl BTree {
         println!("---------------");
     }
 
-    pub fn leftmost_leaf(&mut self) -> Option<Rc<RefCell<BTreeNode>>> {
+    pub fn _leftmost_leaf(&mut self) -> Option<Rc<RefCell<BTreeNode>>> {
         if self.root.is_none() {
             return None;
         }
@@ -1182,13 +1140,10 @@ impl BTree {
                 drop(root_ptr);
                 return Some(root);
             }
-            BTreeNode::Internal { keys: keys, .. } => {
-                let min_key = keys.iter().min().unwrap();
-                let k = (*self.find_leaf(i32::MIN).borrow_mut()).as_raw_leaf();
-                return Some((self.find_leaf(i32::MIN)));
+            BTreeNode::Internal { .. } => {
+                return Some(self.find_leaf(i32::MIN));
             }
         }
-        None
     }
 }
 
@@ -1220,7 +1175,7 @@ impl BTreeNode {
             }
             Self::Internal {
                 parent: _,
-                keys: keys,
+                keys,
                 children: _,
             } => {
                 if keys.len() > order {
@@ -1240,7 +1195,7 @@ impl BTreeNode {
         }
     }
 
-    fn new_leaf() -> BTreeNode {
+    fn _new_leaf() -> BTreeNode {
         BTreeNode::Leaf {
             parent: None,
             data: Vec::new(),
@@ -1248,12 +1203,12 @@ impl BTreeNode {
         }
     }
 
-    pub fn as_raw_leaf(&mut self) -> Option<LeafNode<'_>> {
+    pub fn _as_raw_leaf(&mut self) -> Option<LeafNode<'_>> {
         match self {
             BTreeNode::Leaf {
-                parent: parent,
-                data: data,
-                next: next,
+                parent,
+                data,
+                next,
             } => return Some(LeafNode { parent, data, next }),
 
             _ => None,
@@ -1281,9 +1236,9 @@ impl BTreeNode {
     {
         match self {
             Self::Leaf {
-                parent: parent,
-                data: data,
-                next: next,
+                parent,
+                data,
+                next,
             } => {
                 let result = f(parent, data, next);
                 return Some(result);
@@ -1292,7 +1247,7 @@ impl BTreeNode {
         }
     }
 
-    pub fn as_ref_leaf<F, R>(&self, f: F) -> Option<R>
+    pub fn _as_ref_leaf<F, R>(&self, f: F) -> Option<R>
     where
         F: FnOnce(
             &Option<Weak<RefCell<BTreeNode>>>,
@@ -1302,9 +1257,9 @@ impl BTreeNode {
     {
         match self {
             Self::Leaf {
-                parent: parent,
-                data: data,
-                next: next,
+                parent,
+                data,
+                next,
             } => {
                 let res = f(parent, data, next);
                 return Some(res);
@@ -1313,17 +1268,17 @@ impl BTreeNode {
         }
     }
 
-    pub fn cmp(&mut self, other: &mut BTreeNode, ord: NodeCmpOrd) -> bool {
-        let mut a;
-        let mut b;
-        match self.as_raw_leaf() {
+    pub fn _cmp(&mut self, other: &mut BTreeNode, ord: NodeCmpOrd) -> bool {
+        let a;
+        let b;
+        match self._as_raw_leaf() {
             Some(leaf) => {
                 a = leaf;
             }
             _ => return false,
         }
 
-        match other.as_raw_leaf() {
+        match other._as_raw_leaf() {
             Some(leaf) => {
                 b = leaf;
             }
@@ -1331,31 +1286,24 @@ impl BTreeNode {
         }
 
         match ord {
-            NodeCmpOrd::Greater => {
-                return a.data.last().as_ref().unwrap().key > b.data.first().as_ref().unwrap().key;
-            }
-
             NodeCmpOrd::Less => {
                 return a.data.last().as_ref().unwrap().key < b.data.first().as_ref().unwrap().key;
             }
 
-            _ => unreachable!(),
         }
 
-        false
     }
 
     pub fn can_borrow(&self, order: usize) -> bool {
         match self {
             BTreeNode::Leaf {
                 parent: _,
-                data: data,
+                data,
                 next: _,
             } => (data.len() - 1) as f32 >= (order as f32 / 2.0).ceil() - 1.0,
             BTreeNode::Internal {
-                parent,
                 keys,
-                children,
+                ..
             } => (keys.len() - 1) as f32 >= (order as f32 / 2.0).ceil() - 1.0,
         }
     }
@@ -1364,15 +1312,15 @@ impl BTreeNode {
         node_rc: Rc<RefCell<BTreeNode>>,
     ) -> Option<(Rc<RefCell<BTreeNode>>, usize)> {
         if node_rc.borrow().is_leaf() {
-            if let BTreeNode::Leaf { parent, data, .. } = &*node_rc.borrow() {
+            if let BTreeNode::Leaf { parent, .. } = &*node_rc.borrow() {
                 if parent.is_none() {
                     return None;
                 }
                 let curr_nd_prnt = parent.as_ref().unwrap().upgrade().unwrap();
                 if let BTreeNode::Internal {
                     parent: _,
-                    keys: keys,
                     children: prnt_children,
+                    ..
                 } = &*curr_nd_prnt.borrow()
                 {
                     // println!("{:#?}", prnt_children);
@@ -1396,8 +1344,7 @@ impl BTreeNode {
         };
 
         if let BTreeNode::Internal {
-            parent: parent,
-            children: children,
+            parent,
             ..
         } = &*node_rc.borrow()
         {
@@ -1414,7 +1361,7 @@ impl BTreeNode {
                     .position(|child| Rc::ptr_eq(child, &node_rc))
                     .unwrap();
 
-                if (pos == 0) {
+                if pos == 0 {
                     return None;
                 }
 
@@ -1472,8 +1419,8 @@ impl Iterator for BTreeNode {
         match self {
             Self::Leaf {
                 parent: _,
-                data,
                 next,
+                ..
             } => match next {
                 Some(c_next) => {
                     let next = Rc::clone(c_next);
@@ -1523,7 +1470,7 @@ mod tests {
         let mut t = BTree::new(4);
 
         let mut v: Vec<_> = (0..1_000_000).collect();
-        v.shuffle(&mut rand::thread_rng());
+        v.shuffle(&mut rand::rng());
 
         for i in &v {
             t.insert(Entry {
@@ -1541,7 +1488,7 @@ mod tests {
     fn test_linked_leaves() {
         let mut t = BTree::new(64);
         let mut v: Vec<_> = (0..10000).collect();
-        v.shuffle(&mut rand::thread_rng());
+        v.shuffle(&mut rand::rng());
         for i in 0..10000 {
             t.insert(Entry {
                 key: i,
@@ -1549,13 +1496,13 @@ mod tests {
             });
         }
 
-        let mut leftmost_leaf = t.leftmost_leaf();
+        let  leftmost_leaf = t._leftmost_leaf();
         match leftmost_leaf {
             Some(mut current_node) => loop {
                 let next = {
                     let curr = &mut *current_node.borrow_mut();
                     if let Some(node) = curr.next() {
-                        if curr.cmp(&mut *node.borrow_mut(), NodeCmpOrd::Less) == true {
+                        if curr._cmp(&mut *node.borrow_mut(), NodeCmpOrd::Less) == true {
                             node
                         } else {
                             panic!();
@@ -1719,8 +1666,7 @@ mod tests {
         }
         tree
     }
-
-    fn build_tree_order5() -> BTree {
+    fn _build_tree_order5() -> BTree {
         let mut tree = BTree::new(5);
         for k in (10..=80).step_by(5) {
             tree.insert(Entry {
@@ -2153,7 +2099,7 @@ mod tests {
                 if alive.is_empty() {
                     break;
                 }
-                let idx = rng.gen_range(0..alive.len());
+                let idx = rng.random_range(0..alive.len());
                 let test_key = *alive.iter().nth(idx).unwrap();
 
                 assert!(
