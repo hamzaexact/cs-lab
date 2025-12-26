@@ -1,8 +1,8 @@
-// B+Tree Implementation
-// December 26, 2025 
+// B+Tree Implementation with In-Depth Documentation
+// December 26, 2025
 //
 // A learning-focused B+Tree implementation in Rust.
-// Not fully optimized - built to understand tree operations and memory management.
+// Not fully optimized**
 //
 // Key characteristics:
 // - All data lives in leaf nodes
@@ -97,12 +97,18 @@ impl BTree {
 
     /// Checks if the tree has no data
     pub fn _is_empty(&self) -> bool {
+        // Case 1: No root exists at all
         if self.root.is_none() {
             return true;
         }
+
+        // Case 2: Root exists but it's an empty leaf
+        // This happens when the tree was created but nothing was inserted
         if let BTreeNode::Leaf { data, .. } = &*self.root.as_ref().unwrap().borrow() {
             return data.is_empty();
         }
+
+        // Case 3: Root is an internal node, so we have data somewhere
         false
     }
 
@@ -121,11 +127,18 @@ impl BTree {
     ///   found here
     /// ```
     pub fn search(&self, key: i32) -> Option<Entry> {
+        // Empty tree check
         if self.root.is_none() {
             return None;
         }
 
+        // Start traversal from root
         let mut current = self.root.as_ref().map(Rc::clone).unwrap();
+
+        // PHASE 1: Navigate down the tree to find the correct leaf
+        //
+        // This loop continues until we reach a leaf node.
+        // At each internal node, we decide which child to follow based on key comparisons.
         let _ = loop {
             let next = {
                 let node = current.borrow();
@@ -135,39 +148,68 @@ impl BTree {
                         keys,
                         children,
                     } => {
+                        // INTERNAL NODE NAVIGATION
+                        //
+                        // Internal nodes act as signposts. Their keys tell us which path to take.
+                        //
+                        // Example with keys [20, 40, 60]:
+                        //
+                        //         [20 | 40 | 60]
+                        //        /    |    |    \
+                        //     child0 ch1 ch2   ch3
+                        //     (<20) (20-40) (40-60) (>=60)
+                        //
+                        // If searching for 35:
+                        //   - 35 >= 20, so skip child0
+                        //   - 35 < 40, so take child1
+
                         let mut chosen = None;
-                        //
-                        // NOTE: I should have used binary search here,
-                        // but for simplicity's sake, I used a linear search instead.
-                        //
+
+                        // Linear search through keys to find correct child
+                        // NOTE: Binary search would be more efficient for large nodes,
+                        // but linear search is simpler for educational purposes
                         for (index, num) in keys.iter().enumerate() {
                             if key < *num {
+                                // Found first key larger than search key
+                                // Take the child to the left of this key
                                 chosen = Some(Rc::clone(&children[index]));
                                 break;
                             }
                         }
+
+                        // If we didn't find a larger key, the search key is >= all keys
+                        // so take the rightmost child
                         chosen.unwrap_or_else(|| Rc::clone(children.last().unwrap()))
                     }
                     BTreeNode::Leaf { .. } => {
+                        // Reached a leaf node - exit the loop
                         break;
                     }
                 }
             };
             current = next;
         };
+
+        // PHASE 2: Search within the leaf node
+        //
+        // Now 'current' points to the leaf that should contain our key (if it exists)
         if let BTreeNode::Leaf {
             parent: _,
             data: entries,
             next: _,
         } = &*current.borrow()
         {
+            // Linear search through entries in this leaf
+            // The entries are sorted by key, so we could use binary search here too
             for entry in entries.iter() {
                 if (*entry).key == key {
+                    // Found it! Return a clone of the entry
                     return Some(entry.clone());
                 }
             }
         }
 
+        // Key not found in the tree
         None
     }
 
@@ -188,29 +230,53 @@ impl BTree {
     ///        [10,20]  [30,40]
     /// ```
     pub fn insert(&mut self, entry: Entry) {
+        // STEP 1: Find the appropriate leaf for this key
+        //    =
+        // This traverses the tree from root to leaf, following the path
+        // that the key would take during a search operation
         let leaf = self.find_leaf(entry.key);
+
+        // STEP 2: Insert the entry into the leaf and maintain sorted order
+        //    ==
         if let BTreeNode::Leaf {
             parent: _,
             data: keys,
             next: _,
         } = &mut *leaf.borrow_mut()
         {
+            // Add the new entry
             keys.push(entry);
+
+            // Sort to maintain the invariant that keys are always in order
+            // This makes searches efficient and splits predictable
             keys.sort_by_key(|k| k.key);
         }
+
+        // STEP 3: Check if we need to split due to overflow
+        //
         let is_leaf = (*leaf.borrow()).is_leaf();
+
         if (*leaf.borrow()).is_node_full(self.order) {
-            // Need to split it and re-distribute.
+            // Node has exceeded capacity (keys.len() > order)
+            // Need to split it and re-distribute entries
+
             if is_leaf {
+                // LEAF SPLIT PROCESS:
+                //
+                // 1. Create a new right sibling leaf
+                // 2. Move half the entries to the new leaf
+                // 3. Update the linked list pointers (next)
+                // 4. Promote the middle key to the parent
+                // 5. If parent overflows, split it recursively
+
                 self.split_leaf(Rc::clone(&leaf));
+
+                // Debugging hook (currently commented out)
                 match &*leaf.borrow() {
                     BTreeNode::Leaf { .. } => {
                         let current = self.root.as_ref().map(Rc::clone).unwrap();
                         if let BTreeNode::Internal { parent: _, .. } = &*current.borrow() {
-                            // if keys.len() >= 3 {
-                            //     println!("{:#?}", children);
-                            //     println!("{:#?}", keys);
-                            // }
+                            // Could inspect tree structure here for debugging
                         }
                     }
                     _ => unreachable!(),
@@ -222,6 +288,9 @@ impl BTree {
     /// Walks down the tree to find which leaf should contain this key
     /// Creates a new root leaf if tree is empty
     fn find_leaf(&mut self, key: i32) -> Rc<RefCell<BTreeNode>> {
+        // CASE 1: Empty tree
+        //   =
+        // If there's no root, create the first leaf node and make it the root
         if self.root.is_none() {
             let leaf = Rc::new(RefCell::new(BTreeNode::Leaf {
                 parent: None,
@@ -232,19 +301,36 @@ impl BTree {
             return leaf;
         }
 
+        // CASE 2: Tree exists - traverse to find the correct leaf
+        //      ==
         let mut current = Rc::clone(self.root.as_ref().unwrap());
 
-        // Loop returns the leaf node
+        // This loop navigates from root to leaf, following the path
+        // determined by key comparisons at each internal node
         let leaf = loop {
             let next = {
                 let node = current.borrow();
 
                 match &*node {
                     BTreeNode::Leaf { .. } => {
+                        // Found our target leaf - this is where the key belongs
                         break Rc::clone(&current); // <-- loop RETURNS this
                     }
 
                     BTreeNode::Internal { keys, children, .. } => {
+                        // NAVIGATION LOGIC
+                        //
+                        // Same as in the search function: compare key against internal keys
+                        // to determine which child subtree to follow
+                        //
+                        // Visual example with keys [30, 60]:
+                        //
+                        //         [30 | 60]
+                        //        /    |    \
+                        //     (<30) (30-60) (>=60)
+                        //
+                        // For key=45: 45>=30, 45<60, so take middle child
+
                         let mut chosen = None;
 
                         for (index, num) in keys.iter().enumerate() {
@@ -254,6 +340,7 @@ impl BTree {
                             }
                         }
 
+                        // If key >= all internal keys, go to rightmost child
                         chosen.unwrap_or_else(|| Rc::clone(children.last().unwrap()))
                     }
                 }
@@ -271,13 +358,23 @@ impl BTree {
         &mut self,
         parent: &mut Option<Weak<RefCell<BTreeNode>>>,
     ) -> Weak<RefCell<BTreeNode>> {
+        // CASE 1: No parent exists (we're at the root)
+        //
         if parent.is_none() {
+            // Create a new internal node to become the parent
             let parent = Rc::new(RefCell::new(BTreeNode::new_internal()));
-            // since there is no parent == no root;
+
+            // Since there's no parent, this node must become the new root
+            // This is how the tree grows in height
             self.root = Some(parent);
+
             return self.root.as_ref().map(Rc::downgrade).unwrap();
         }
 
+        // CASE 2: Parent exists
+        //
+        // Upgrade the weak reference to a strong one, then downgrade again
+        // This dance is necessary because we need to return a Weak reference
         ((parent.as_ref().unwrap()).upgrade())
             .as_ref()
             .map(Rc::downgrade)
@@ -293,7 +390,7 @@ impl BTree {
     /// After:  Parent: [30]
     ///         /           \
     ///    [10, 20]      [30, 40]
-    ///       |  ----------->  |  (linked via 'next')
+    ///       |      >  |  (linked via 'next')
     /// ```
     ///
     /// The middle key gets promoted to parent
@@ -301,33 +398,57 @@ impl BTree {
         let mut overflowed_parent: Option<Rc<RefCell<BTreeNode>>> = None;
         let mut mut_leaf_ptr = leaf.borrow_mut();
 
-        // BORROW START HERE IN ACTION
+        // BORROW SCOPE BEGINS: We have mutable access to the overflowing leaf
+
         if let BTreeNode::Leaf {
             parent: left_child_parent,
             data: left_keys,
             next,
         } = &mut *mut_leaf_ptr
-        // INSIDE THE GIVEN LEAF NODE THAT HAS THE OVER FLOW
         {
-            // WE CREATE A PARENT TO HOLD THEM
+            // STEP 1: Get or create a parent to hold the split nodes
+
+            // The parent will receive:
+            //   - A pointer to the left child (original leaf)
+            //   - The separator key
+            //   - A pointer to the right child (new leaf we're about to create)
+
             let ptr_leaf_parent = (self.get_node_parent(left_child_parent).upgrade()).unwrap();
-            let mut leaf_parent = ptr_leaf_parent.borrow_mut(); // MUTED
-            // BORROW HERE
+            let mut leaf_parent = ptr_leaf_parent.borrow_mut(); // MUTABLE BORROW
+
             if let BTreeNode::Internal {
                 parent: _,
                 keys: parent_keys,
                 children: parent_children,
             } = &mut *leaf_parent
             {
+                // STEP 2: Calculate split point and the key to promote
+                //
+                // For a leaf with 4 entries [10, 20, 30, 40]:
+                //   - middle = 4 / 2 = 2
+                //   - key_to_promote = left_keys[2].key = 30
+                //   - Left keeps: [10, 20]
+                //   - Right gets: [30, 40]
+
                 let middle = left_keys.len() / 2;
                 let key_to_promote = left_keys[middle].key;
 
-                // AFTER GETTING THE PARENT I CREATE A RIGHT CHILD TO HOLD THE REMINING NODES
+                // STEP 3: Create the right sibling leaf
+                //
                 let right_child = {
                     let tmp = Rc::new(RefCell::new(BTreeNode::Leaf {
-                        parent: Some(Rc::downgrade(&ptr_leaf_parent)), // let it point to the
-                        // parent
-                        data: left_keys.split_off(middle), // REMINING NODES
+                        // Point back to the parent we just obtained
+                        parent: Some(Rc::downgrade(&ptr_leaf_parent)),
+
+                        // split_off(middle) removes elements [middle..] from left_keys
+                        // and returns them as a new Vec
+                        // After this, left_keys contains [0..middle]
+                        data: left_keys.split_off(middle),
+
+                        // LINKED LIST MAINTENANCE
+
+                        // The right child should point to whatever the original leaf
+                        // was pointing to (could be None or another leaf)
                         next: {
                             let mut next_ptr = None;
                             if next.is_some() {
@@ -339,39 +460,66 @@ impl BTree {
                     tmp
                 };
 
+                // STEP 4: Update pointers to maintain tree structure
+
+                // Left child (original leaf) now points to the parent
                 *left_child_parent = Some(Rc::downgrade(&ptr_leaf_parent));
+
+                // Left child's 'next' pointer now points to right sibling
+                // This maintains the linked list of leaves for range scans
                 *next = Some(Rc::clone(&right_child));
+
+                // STEP 5: Insert children and key into parent
+
                 if parent_children.is_empty() {
-                    // Root case: first split ever
-                    parent_children.push(Rc::clone(&leaf));
-                    parent_keys.push(key_to_promote);
-                    parent_children.push(Rc::clone(&right_child));
+                    // SPECIAL CASE: Root split
+                    //
+                    // This is the first split ever. The parent is empty and just became root.
+                    // Tree structure before:  [10, 20, 30, 40] (single leaf, is root)
+                    // Tree structure after:        [30]
+                    //                             /    \
+                    //                        [10,20]  [30,40]
+
+                    parent_children.push(Rc::clone(&leaf)); // Left child
+                    parent_keys.push(key_to_promote); // Separator
+                    parent_children.push(Rc::clone(&right_child)); // Right child
                 } else {
-                    // Find where the left (original) leaf is in parent's children
+                    // NORMAL CASE: Parent already has children
+                    //       -
+                    // Find where the left (original) leaf is in parent's children array
                     let left_index = parent_children
                         .iter()
                         .position(|child| Rc::ptr_eq(child, &leaf))
                         .unwrap();
-                    // Insert the promoted key at the position
+
+                    // Insert the separator key at the appropriate position
+                    // Example: if left_index=1, parent keys [20, 40, 60]
+                    //          inserting 30 at position 1 gives [20, 30, 40, 60]
                     parent_keys.insert(left_index, key_to_promote);
 
                     // Insert right child immediately after left child
                     parent_children.insert(left_index + 1, Rc::clone(&right_child));
-
-                    // update left and right pointers
-                    //
-                    //
                 }
+
+                // STEP 6: Check if parent overflowed from this insertion
+                //      =
                 if parent_keys.len() >= self.order {
+                    // Parent now has too many keys and needs to be split
+                    // We'll handle this after we release all our borrows
                     overflowed_parent = Some(Rc::clone(&ptr_leaf_parent));
                 }
             }
 
-            // Manuall drop to prevent borrowing overhead later
+            // Manually drop borrows to prevent borrowing conflicts later
+            // This is necessary because we might need to recursively split the parent
             drop(leaf_parent);
             drop(mut_leaf_ptr);
         }
 
+        // STEP 7: Handle cascading splits
+        //
+        // If the parent overflowed, we need to split it too
+        // This can cascade all the way up to the root
         if overflowed_parent.is_some() {
             self.split_internal(overflowed_parent.unwrap());
         }
@@ -386,27 +534,28 @@ impl BTree {
     fn split_internal(&mut self, node: Rc<RefCell<BTreeNode>>) {
         let mut overflowed_parent: Option<Rc<RefCell<BTreeNode>>> = None;
 
-        // NODE: the Node that we want to split
+        // POINTER STRUCTURE DURING SPLIT
+        //    ==
         //
+        // We're splitting an internal node that looks like this:
         //
+        //              PARENT
+        //                 |
+        //                 v
+        //         LEFT NODE (to split)
+        //        /  |  |  \   (has too many children)
+        //       /   |  |   \
+        //      C0  C1 C2   C3
         //
-        // INITIALIZATION :
+        // After split:
         //
-        // LEFT NODE<---+
-        //     |        |
-        //     |        |
-        //     |        |
-        //     +        |
-        // PARENT NODE<-+ <-- LIFETIME
-        //     |        |
-        //     |        |
-        //     |        |
-        //     +        |
-        // RIGHT NODE<--+
+        //              PARENT
+        //             /      \
+        //       LEFT NODE  RIGHT NODE
+        //        /    \      /    \
+        //       C0    C1    C2    C3
         //
-        //
-        //
-        //
+        // The middle key from LEFT NODE gets promoted to PARENT
 
         let mut mut_left_ptr = node.borrow_mut();
         if let BTreeNode::Internal {
@@ -415,27 +564,51 @@ impl BTree {
             children: left_node_children,
         } = &mut *mut_left_ptr
         {
+            // STEP 1: Get or create parent
+            //
             let parent = self.get_node_parent(left_node_parent).upgrade().unwrap();
             let mut mut_parent_ptr = parent.borrow_mut();
+
+            // STEP 2: Determine split point
+            //    =
+            // For keys [3, 5, 7, 9] with order=4:
+            //   - middle = 4 / 2 = 2
+            //   - key_to_promote = left_node_keys[2] = 7
+            //   - After split:
+            //       Left gets:  [3, 5]
+            //       Right gets: [9]
+            //       Parent gets: 7 (the separator)
+
             let middle = left_node_keys.len() / 2;
             let key_to_promote = left_node_keys[middle];
+
+            // STEP 3: Create right sibling internal node
+            //   =
             let right_node = Rc::new(RefCell::new(BTreeNode::Internal {
                 parent: Some(Rc::downgrade(&parent)),
                 keys: {
+                    // split_off(middle + 1) gives us keys [middle+1..]
+                    // Example: [3,5,7,9] -> split_off(3) -> [9]
                     let keys = left_node_keys.split_off(middle + 1);
-                    // If keys are [3, 5, 7, 9]:
-                    // Right keys: [9]
-                    // Left keys: [3, 5, 7]
-                    // Since this is an internal split, the middle key (7) should not be included. We will remove it here.
+
+                    // IMPORTANT: For internal nodes, the middle key goes UP to parent
+                    // It should NOT stay in the left node
+                    // So we pop it from left_node_keys
                     left_node_keys.pop();
+
                     keys
                 },
+                // Split children similarly: right gets children [middle+1..]
                 children: left_node_children.split_off(middle + 1),
             }));
 
-            // UPDATE THE LEFT NODE PARENT POINTER
-
+            // STEP 4: Update left node's parent pointer
+            //
             *left_node_parent = Some(Rc::downgrade(&parent));
+
+            // STEP 5: Fix parent pointers for left node's children
+            //
+            // All children in left_node_children need to point back to 'node'
             for child in left_node_children.iter() {
                 let mut child_node = child.borrow_mut();
                 match &mut *child_node {
@@ -452,7 +625,8 @@ impl BTree {
                 }
             }
 
-            // FIX THE RIGHT NODE POINTER
+            // STEP 6: Fix parent pointers for right node's children
+            //
             let mut mut_right_ptr = right_node.borrow_mut();
             if let BTreeNode::Internal {
                 parent: _,
@@ -463,6 +637,7 @@ impl BTree {
                 for child in right_node_children.iter_mut() {
                     let mut child_node = child.borrow_mut();
 
+                    // Update parent for internal children
                     if let BTreeNode::Internal {
                         parent: child_parent,
                         ..
@@ -470,18 +645,19 @@ impl BTree {
                     {
                         *child_parent = Some(Rc::downgrade(&right_node));
                     }
-                    // if let Some(leaf) = (*child_node).as_leaf() {
-                    //     *leaf.parent = Some(Rc::downgrade(&right_node));
-                    // }
 
+                    // Update parent for leaf children using helper function
                     if let Some(_) = (*child_node).as_mut_leaf(|parent, _, _| {
                         *parent = Some(Rc::downgrade(&right_node));
                     }) {}
                 }
             }
-            // DROP IT HERE MANUALLY TO PREVENT ANY FUTURE BORROWING ISSUES
+
+            // Release borrow early to prevent conflicts
             drop(mut_right_ptr);
 
+            // STEP 7: Insert split results into parent
+            //
             if let BTreeNode::Internal {
                 parent: _,
                 keys: parent_keys,
@@ -489,28 +665,41 @@ impl BTree {
             } = &mut *mut_parent_ptr
             {
                 if parent_children.is_empty() {
-                    // Root case
+                    // ROOT SPLIT CASE
+                    //
+                    // The parent is empty, meaning it's a brand new root
+                    // This increases the tree height
                     parent_children.push(Rc::clone(&node));
                     parent_keys.push(key_to_promote);
                     parent_children.push(Rc::clone(&right_node));
                 } else {
+                    // NORMAL CASE
+                    //
                     // Find where the left node is in parent's children
                     let left_index = parent_children
                         .iter()
                         .position(|child| Rc::ptr_eq(child, &node))
                         .unwrap();
+
+                    // Insert separator key
                     parent_keys.insert(left_index, key_to_promote);
+
+                    // Insert right child after left child
                     parent_children.insert(left_index + 1, Rc::clone(&right_node));
                 }
 
+                // Check if parent overflowed
                 if parent_keys.len() >= self.order {
                     overflowed_parent = Some(Rc::clone(&parent));
                 }
             }
+
             drop(mut_parent_ptr);
             drop(mut_left_ptr);
-        } // END OF THE LEFT NODE SCOOP
+        }
 
+        // STEP 8: Handle cascading splits
+        //
         if overflowed_parent.is_some() {
             self.split_internal(overflowed_parent.unwrap());
         }
@@ -539,18 +728,33 @@ impl BTree {
     ///    [20,30]  [40,50]
     /// ```
     pub fn delete(&mut self, key: i32) -> bool {
-        // Get Plan from DeletePlanner
+        // OVERVIEW OF DELETION
         //
+        // B+Tree deletion is more complex than insertion because we need to
+        // maintain the minimum number of keys in each node.
         //
-        // Return the leaf that contains the key we're trying to delete.
+        // Minimum keys per node = ceil(order/2) - 1
+        // For order=5: minimum = 2 keys per node
+        //
+        // When a deletion causes underflow, we have options:
+        //   1. Borrow from a sibling (if it has spare keys)
+        //   2. Merge with a sibling (if borrowing isn't possible)
+        //   3. Merges can cascade up the tree
+
+        // STEP 1: Find the leaf containing the key
+        //
         let leaf_rc = self.find_leaf(key);
-        // Check if its the root
+
+        // STEP 2: Special case - deleting from root
+        //
         if Rc::ptr_eq(&leaf_rc, self.root.as_ref().unwrap()) {
+            // The leaf IS the root (tree has only one node)
             let state = leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
                 let index = data.iter().position(|entry| entry.key == key);
                 if index.is_none() {
                     return false;
                 }
+                // Remove the key directly - no underflow concerns for root
                 data.remove(index.unwrap());
                 return true;
             });
@@ -561,15 +765,29 @@ impl BTree {
                 return false;
             }
         }
+
+        // STEP 3: Plan the deletion strategy
+        //
+        // This analyzes the node and its siblings to determine:
+        //   - Can we delete without underflow? (Simple)
+        //   - Can we borrow from right sibling? (RightBorrow)
+        //   - Can we borrow from left sibling? (LeftBorrow)
+        //   - Must we merge? (Merge)
         let plan = self.delete_planner(key, Rc::clone(&leaf_rc));
 
+        // STEP 4: Execute the deletion plan
+        //
         match plan {
             (DeletePlanner::Empty, ..) => {
-                //  println!("EMPTY TREE");
+                // Tree is empty or key doesn't exist
                 return false;
             }
+
             (DeletePlanner::Simple, ..) => {
-                // println!("SIMPLE PLAN");
+                // SIMPLE DELETION
+                //
+                // Node will still have enough keys after deletion
+                // Just remove the key directly
                 leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
                     let index = data.iter().position(|entry| entry.key == key);
                     if index.is_none() {
@@ -581,17 +799,26 @@ impl BTree {
             }
 
             (DeletePlanner::RightBorrow, r_leaf, pos) => {
-                //  println!("RIGHT PLAN");
+                // BORROW FROM RIGHT
+                //
+                // Right sibling has extra keys
+                // Move one key from right sibling to current node
                 return self.right_borrow(Rc::clone(&leaf_rc), key, r_leaf, pos);
             }
 
             (DeletePlanner::LeftBorrow, left_sibl, left_sibl_pos) => {
-                // println!("LEFT PLAN");
+                // BORROW FROM LEFT
+                //
+                // Left sibling has extra keys
+                // Move one key from left sibling to current node
                 return self.left_borrow(key, leaf_rc, left_sibl, left_sibl_pos);
             }
 
             _ => {
-                // println!("MERGE PLAN");
+                // MERGE CASE
+                //
+                // Neither sibling can lend a key
+                // Must merge this node with a sibling
                 return self.merge_leaf(leaf_rc, key);
             }
         }
@@ -606,11 +833,21 @@ impl BTree {
         _: i32,
         leaf_rc: Rc<RefCell<BTreeNode>>,
     ) -> (DeletePlanner, Rc<RefCell<BTreeNode>>, usize) {
-        // TODO: Check If its Empty
+        // DELETION PLANNING ALGORITHM
+        //   ==
+        // This function determines the safest way to delete a key
+        // without violating B+Tree properties
         //
+        // Priority order:
+        //   1. Check if tree is empty
+        //   2. Check if simple deletion works (node stays valid)
+        //   3. Try borrowing from right sibling
+        //   4. Try borrowing from left sibling
+        //   5. Fall back to merge
 
+        // CHECK 1: Is this an empty root?
+        //
         if let BTreeNode::Internal { parent, keys, .. } = &*leaf_rc.borrow() {
-            // ITS A ROOT
             if parent.is_none() {
                 if keys.is_empty() {
                     return (DeletePlanner::Empty, Rc::clone(&leaf_rc), 0x00);
@@ -619,9 +856,7 @@ impl BTree {
         }
 
         let tmp_borrow = leaf_rc.borrow();
-
         if let BTreeNode::Leaf { parent, data, .. } = &*tmp_borrow {
-            // ITS A ROOT
             if parent.is_none() {
                 if data.is_empty() {
                     return (DeletePlanner::Empty, Rc::clone(&leaf_rc), 0x00);
@@ -630,32 +865,33 @@ impl BTree {
         }
         drop(tmp_borrow);
 
+        // CHECK 2: Can we do a simple delete?
         //
-        // TODO: Check the case for a direct removal scenario.
+        // Simple delete works if: (keys_after_delete) >= ceil(order/2) - 1
         //
-        //
-        // Return the leaf that contains the key we're trying to delete.
-        // Simple check for the basic case, where a leaf node has sufficient parent_children
-        //
-        let state = leaf_rc.borrow().can_borrow(self.order);
+        // Example with order=5:
+        //   Minimum keys = ceil(5/2) - 1 = 2
+        //   If node has 3 keys, deleting 1 leaves 2 (OK!)
+        //   If node has 2 keys, deleting 1 leaves 1 (UNDERFLOW!)
 
+        let state = leaf_rc.borrow().can_borrow(self.order);
         if state {
             return (DeletePlanner::Simple, Rc::clone(&leaf_rc), 0x00);
         }
 
-        // TODO: Check if we can do right borrow
-        // To make this work, we must first check
-        // if the last key of the current node is
-        // smaller than the most right key of its
-        // parent node. If so, we can then check
-        // if the right sibling has enough keys to borrow.
-        // if not we check for the left borrow.
-
+        // CHECK 3: Can we borrow from right sibling?
+        //   =
+        // Borrowing works if the sibling has more than the minimum keys
         //
-        // __*If there's no next node, we're the rightmost node.
+        // Example with order=5 (min=2 keys):
+        //   Current:  [10]      (will underflow after delete)
+        //   Right:    [30, 40, 50]  (has 3 > 2, can lend one!)
+        //
+        // After borrowing:
+        //   Current:  [30]
+        //   Right:    [40, 50]
 
         let right_sibl = BTreeNode::right_sibling(Rc::clone(&leaf_rc));
-
         if right_sibl.is_some() {
             let (next_rc, right_sibling_pos) = right_sibl.unwrap();
             let state = next_rc.borrow().can_borrow(self.order);
@@ -668,34 +904,17 @@ impl BTree {
             }
         }
 
-        // Since we couldn't borrow from the right node,
-        // let's check the left one (if it exists).
+        // CHECK 4: Can we borrow from left sibling?
         //
-        // We can check if we're not the leftmost node by comparing
-        // the first key of the current node with the first key of the parent,
-        // if the parent key is greater than the current's first key.
-        // If so, we're the leftmost.
+        // Similar to right borrow, but takes from left sibling instead
+        //
         // Example:
+        //   Left:     [10, 20, 30]  (has spare keys)
+        //   Current:  [40]          (will underflow)
         //
-        //        [20 | 40]
-        //         /      \
-        //        /        \
-        //   [10, 15]   [20, 30, 40]
-        //
-        //
-        // The first key to compare would be 20, since it's the first key at
-        // the parent node. We see they're equal, which is correct. However,
-        // if the key was 10, then 10 < 20, indicating we are the leftmost child node.
-        //
-        // NOTE: Since I'm not using this for any project,
-        // I'd like to use a quick trick to check if we are the leftmost node.
-        // NOTE:
-        // (THAT TRICK WERE REMOVED WHILE DEBUGGING)
-        //
-        // We match the current leaf to the leftmost leaf using a helper function.
-        //
-        //
-        //
+        // After borrowing:
+        //   Left:     [10, 20]
+        //   Current:  [30, 40]
 
         let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
         if left_sibl.is_some() {
@@ -705,6 +924,9 @@ impl BTree {
             }
         }
 
+        // FALLBACK: Must merge
+        //
+        // If we can't borrow from either sibling, we must merge
         (DeletePlanner::Merge, Rc::clone(&leaf_rc), 0x03)
     }
 
@@ -717,21 +939,46 @@ impl BTree {
         right_sibl: Rc<RefCell<BTreeNode>>,
         right_sibling_pos: usize,
     ) -> bool {
+        // RIGHT BORROW PROCESS
+        //
+        //
+        // Before:
+        //           Parent: [40]
+        //           /           \
+        //     Current:[10,20]  Right:[40,50,60]
+        //
+        // Delete 10, borrow from right:
+        //           Parent: [50]  <- separator updated
+        //           /           \
+        //     Current:[20,40]  Right:[50,60]
+
         if let BTreeNode::Leaf { parent, data, .. } = &mut *leaf.borrow_mut() {
+            // STEP 1: Delete the target key
+            //    =
             let pos = data.iter().position(|e| e.key == deleted_key);
             if pos.is_none() {
                 return false;
             }
             data.remove(pos.unwrap());
 
+            // STEP 2: Borrow first entry from right sibling
+            //
             if let BTreeNode::Leaf { data: sib_dat, .. } = &mut *right_sibl.borrow_mut() {
+                // Remove the first entry from right sibling
                 let entry = sib_dat.remove(0);
+
+                // Add it to current node
                 data.push(entry);
 
+                // STEP 3: Update parent separator key
+                //
+                // The separator key between current and right sibling
+                // must now be the first key of the right sibling
                 let new_sep = sib_dat[0].key;
 
                 let prnt = parent.as_ref().unwrap().upgrade().unwrap();
                 if let BTreeNode::Internal { keys, .. } = &mut *prnt.borrow_mut() {
+                    // Update the separator at position right_sibling_pos - 1
                     keys[right_sibling_pos - 1] = new_sep;
                 }
             }
@@ -748,19 +995,41 @@ impl BTree {
         left_sibl: Rc<RefCell<BTreeNode>>,
         left_sibl_pos: usize,
     ) -> bool {
+        // LEFT BORROW PROCESS
+
+        //
+        // Before:
+        //           Parent: [40]
+        //           /           \
+        //     Left:[10,20,30]  Current:[40,50]
+        //
+        // Delete 50, borrow from left:
+        //           Parent: [30]  <- separator updated
+        //           /           \
+        //     Left:[10,20]     Current:[30,40]
+
         if let BTreeNode::Leaf { parent, data, .. } = &mut *leaf_rc.borrow_mut() {
+            // STEP 1: Delete the target key
+            //    =
             let key_to_delete = data.iter().position(|e| e.key == key);
             if key_to_delete.is_none() {
                 return false;
             }
             data.remove(key_to_delete.unwrap());
 
+            // STEP 2: Borrow last entry from left sibling
+
             if let BTreeNode::Leaf { data: left_dat, .. } = &mut *left_sibl.borrow_mut() {
                 let last_idx = left_dat.len() - 1;
                 let t_key = left_dat[last_idx].key;
+
+                // Remove last from left, insert at beginning of current
                 data.insert(0, left_dat.remove(last_idx));
 
-                // update parent
+                // STEP 3: Update parent separator
+                //
+                // The separator between left and current should now be
+                // the key we just borrowed (which is now first in current)
                 let prnt_tmp = parent.as_ref().unwrap().upgrade().unwrap();
                 let mut prnt = prnt_tmp.borrow_mut();
                 if let BTreeNode::Internal { keys: pr_k, .. } = &mut *prnt {
@@ -775,14 +1044,32 @@ impl BTree {
     /// Merges the underflowing node with a sibling
     /// May cause parent underflow, triggering recursive fixes
     pub fn merge_leaf(&mut self, leaf_rc: Rc<RefCell<BTreeNode>>, key: i32) -> bool {
+        // MERGE PROCESS
+
+        // When neither sibling can lend a key, we must merge nodes
+        //
+        // Before:
+        //           Parent: [30, 50]
+        //           /      |       \
+        //       [10,20]  [30]    [50,60]
+        //
+        // After merging middle with right:
+        //           Parent: [30]
+        //           /           \
+        //       [10,20]      [30,50,60]
+
         let mut underflowed_parent: Option<_> = None;
         let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
-        // We are the left most
+
+        // CASE 1: We are the leftmost node
+        //
         if left_sibl.is_none() {
-            // Delete the key
-            // Merge with right
+            // No left sibling, so merge with right sibling instead
+            // We'll absorb the right sibling's data
+
             let (right_sibl, _) = BTreeNode::right_sibling(Rc::clone(&leaf_rc)).unwrap();
             let mut tmp_r_borrow = right_sibl.borrow_mut();
+
             if let BTreeNode::Leaf {
                 parent: l_prnt,
                 data,
@@ -790,32 +1077,38 @@ impl BTree {
             } = &mut *tmp_r_borrow
             {
                 let mut leaf_tmp_brr = leaf_rc.borrow_mut();
+
                 if let BTreeNode::Leaf {
                     data: curr_node_data,
                     next: curr_next,
                     ..
                 } = &mut *leaf_tmp_brr
                 {
+                    // Delete the target key first
                     let k_to_rm = curr_node_data.iter().position(|e| e.key == key);
                     if k_to_rm.is_none() {
                         return false;
                     }
                     curr_node_data.remove(k_to_rm.unwrap());
+
+                    // Merge: move all data from right sibling to current
                     curr_node_data.append(data);
 
+                    // Update linked list pointer
                     if next.is_none() {
                         *curr_next = None;
                     } else {
                         *curr_next = Some(next.as_ref().map(Rc::clone).unwrap());
                     }
 
+                    // Update parent: remove separator and right child pointer
                     let t_prnt = l_prnt.as_ref().unwrap().upgrade().unwrap();
                     if let BTreeNode::Internal { keys, children, .. } = &mut *t_prnt.borrow_mut() {
-                        keys.remove(0);
-                        children.remove(1); // since we are the left most, index 1 represent
-                        // the sibling
+                        keys.remove(0); // Remove first separator
+                        children.remove(1); // Remove right sibling pointer
+
+                        // Check if parent underflowed
                         if (self.order as f32 / 2_f32).ceil() - 1_f32 > keys.len() as f32 {
-                            // TODO: PARENT OVERFLOW
                             underflowed_parent = Some(Rc::clone(&t_prnt));
                         }
                     }
@@ -824,15 +1117,17 @@ impl BTree {
                 drop(leaf_tmp_brr);
             }
             drop(tmp_r_borrow);
+
+            // Handle parent underflow recursively
             if underflowed_parent.is_some() {
-                //      println!("UNDERFLOW");
                 self.fix_parent_underflow(underflowed_parent.unwrap());
             }
         }
-        // __LOC
+        // CASE 2: We have a left sibling - merge with it
         else if left_sibl.is_some() {
             let (left_sibling, curr_left_sib_pos) = left_sibl.unwrap();
             let mut tmp_left_borrow = left_sibling.borrow_mut();
+
             if let BTreeNode::Leaf {
                 parent: l_prnt,
                 data,
@@ -840,18 +1135,24 @@ impl BTree {
             } = &mut *tmp_left_borrow
             {
                 let mut tmp_r_borrow = leaf_rc.borrow_mut();
+
                 if let BTreeNode::Leaf {
                     data: curr_node_data,
                     next: curr_next,
                     ..
                 } = &mut *tmp_r_borrow
                 {
+                    // Delete target key
                     let k_to_rm = curr_node_data.iter().position(|e| e.key == key);
                     if k_to_rm.is_none() {
                         return false;
                     }
                     curr_node_data.remove(k_to_rm.unwrap());
+
+                    // Merge: move current's data to left sibling
                     data.append(curr_node_data);
+
+                    // Update linked list
                     if curr_next.is_none() {
                         *next = None
                     } else {
@@ -859,10 +1160,13 @@ impl BTree {
                         *next = Some(new_next);
                     }
 
+                    // Update parent
                     let t_prnt = l_prnt.as_ref().unwrap().upgrade().unwrap();
                     if let BTreeNode::Internal { keys, children, .. } = &mut *t_prnt.borrow_mut() {
                         keys.remove(curr_left_sib_pos);
                         children.remove(curr_left_sib_pos + 1);
+
+                        // Check for underflow
                         if keys.len() < ((self.order + 1) / 2) - 1 {
                             underflowed_parent = Some(Rc::clone(&t_prnt));
                         }
@@ -873,8 +1177,8 @@ impl BTree {
                 drop(tmp_r_borrow);
             }
             drop(tmp_left_borrow);
+
             if underflowed_parent.is_some() {
-                //   println!("UNDERFLOW WHILE MERGING WITH LEFT / RI");
                 self.fix_parent_underflow(underflowed_parent.unwrap());
             }
         }
@@ -890,6 +1194,16 @@ impl BTree {
     ///
     /// Special case: if root ends up with only 1 child, make that child the new root
     fn fix_parent_underflow(&mut self, node_rc: Rc<RefCell<BTreeNode>>) {
+        // SPECIAL CASE: Root with single child
+        //
+        // If the root has no keys and only one child, the tree shrinks in height
+        //
+        // Before:      Root: [ ]
+        //                     |
+        //                   Child
+        //
+        // After:       Child becomes new root
+
         {
             let node = node_rc.borrow();
             if let BTreeNode::Internal {
@@ -900,10 +1214,12 @@ impl BTree {
             {
                 if parent.is_none() {
                     if keys.is_empty() && children.len() == 1 {
+                        // This is the root, and it has only one child
+                        // Make that child the new root
                         let child = Rc::clone(&children[0]);
                         match &mut *child.borrow_mut() {
                             BTreeNode::Leaf { parent, .. } | BTreeNode::Internal { parent, .. } => {
-                                *parent = None;
+                                *parent = None; // Child is now root, has no parent
                             }
                         }
                         self.root = Some(child);
@@ -913,14 +1229,32 @@ impl BTree {
             }
         }
 
+        // STRATEGY 1: Try borrowing from right sibling
+        //
         let left = BTreeNode::left_sibling(Rc::clone(&node_rc));
 
         if left.is_none() {
+            // We're the leftmost, try right sibling
             if let Some((right, _)) = BTreeNode::right_sibling(Rc::clone(&node_rc)) {
                 if right.borrow().can_borrow(self.order) {
+                    // BORROW FROM RIGHT SIBLING (INTERNAL NODE)
+                    //
+                    //
+                    // Before:
+                    //         Parent: [50, 80]
+                    //         /       |       \
+                    //    Current:[20] Right:[60,70]  ...
+                    //
+                    // After borrowing:
+                    //         Parent: [60, 80]  <- updated separator
+                    //         /       |       \
+                    //    Current:[20,50] Right:[70]  ...
+                    //      ^sep pulled down  ^child moved
+
                     let sep_idx;
                     let parent_rc;
 
+                    // Get parent reference
                     {
                         let node = node_rc.borrow();
                         if let BTreeNode::Internal { parent, .. } = &*node {
@@ -955,24 +1289,27 @@ impl BTree {
                             },
                         ) = (&mut *right_node, &mut *curr_node, &mut *parent)
                         {
+                            // Find separator index in parent
                             sep_idx = p_ch.iter().position(|c| Rc::ptr_eq(c, &node_rc)).unwrap();
                             sep_key = p_keys[sep_idx];
 
+                            // Pull separator down to current node
                             c_keys.push(sep_key);
+
+                            // Move first child from right to current
                             moved_child = r_ch.remove(0);
                             c_ch.push(Rc::clone(&moved_child));
 
+                            // Promote first key of right sibling to parent
                             p_keys[sep_idx] = r_keys.remove(0);
                         } else {
                             return;
                         }
                     }
 
-                    // fix moved child parent
+                    // Update moved child's parent pointer
                     match &mut *moved_child.borrow_mut() {
-                        BTreeNode::Leaf { parent, .. } 
-                        |
-                        BTreeNode::Internal { parent, .. } => {
+                        BTreeNode::Leaf { parent, .. } | BTreeNode::Internal { parent, .. } => {
                             *parent = Some(Rc::downgrade(&node_rc));
                         }
                     }
@@ -982,8 +1319,18 @@ impl BTree {
             }
         }
 
+        // STRATEGY 2: Try borrowing from left sibling
+
         if let Some((left_sib, _)) = left {
             if left_sib.borrow().can_borrow(self.order) {
+                // BORROW FROM LEFT SIBLING (INTERNAL NODE)
+                //
+                //
+                // Similar to right borrow, but in reverse:
+                // - Pull separator down from parent
+                // - Take last child from left sibling
+                // - Push up left's last key to be new separator
+
                 let sep_idx;
                 let parent_rc;
 
@@ -1023,16 +1370,21 @@ impl BTree {
                     {
                         sep_idx = p_ch.iter().position(|c| Rc::ptr_eq(c, &node_rc)).unwrap() - 1;
 
+                        // Pull separator down to front of current
                         c_keys.insert(0, p_keys[sep_idx]);
+
+                        // Move last child from left to front of current
                         moved_child = l_ch.pop().unwrap();
                         c_ch.insert(0, Rc::clone(&moved_child));
 
+                        // Push up left's last key
                         p_keys[sep_idx] = l_keys.pop().unwrap();
                     } else {
                         return;
                     }
                 }
 
+                // Update moved child's parent
                 match &mut *moved_child.borrow_mut() {
                     BTreeNode::Leaf { parent, .. } | BTreeNode::Internal { parent, .. } => {
                         *parent = Some(Rc::downgrade(&node_rc));
@@ -1040,9 +1392,12 @@ impl BTree {
                 }
 
                 return;
-            } else {
             }
         }
+
+        // STRATEGY 3: Must merge with sibling
+        //
+        // Neither sibling can lend, so we merge
 
         let parent_rc = {
             let node = node_rc.borrow();
@@ -1055,6 +1410,7 @@ impl BTree {
 
         let mut parent = parent_rc.borrow_mut();
 
+        // Find our position in parent
         let pos = if let BTreeNode::Internal { children, .. } = &*parent {
             children
                 .iter()
@@ -1070,6 +1426,8 @@ impl BTree {
             ..
         } = &mut *node_rc.borrow_mut()
         {
+            // CASE A: Merge with left sibling (we're not leftmost)
+            //
             if pos > 0 {
                 let left_sibling = if let BTreeNode::Internal { children, .. } = &*parent {
                     Rc::clone(&children[pos - 1])
@@ -1089,17 +1447,17 @@ impl BTree {
                         ..
                     } = &mut *parent
                     {
-                        // move separator key down
+                        // Pull separator key down into left node
                         left_keys.push(parent_keys.remove(pos - 1));
 
-                        // merge keys & children
+                        // Merge all keys and children from current to left
                         left_keys.append(curr_keys);
                         left_children.append(curr_children);
 
-                        // remove current node pointer
+                        // Remove current node from parent
                         parent_children.remove(pos);
 
-                        // fix child parents
+                        // Update all children to point to left_sibling
                         for ch in left_children.iter() {
                             match &mut *ch.borrow_mut() {
                                 BTreeNode::Leaf { parent, .. }
@@ -1110,7 +1468,10 @@ impl BTree {
                         }
                     }
                 }
-            } else {
+            }
+            // CASE B: Merge with right sibling (we're leftmost)
+            //
+            else {
                 let right_sibling = if let BTreeNode::Internal { children, .. } = &*parent {
                     Rc::clone(&children[1])
                 } else {
@@ -1129,17 +1490,17 @@ impl BTree {
                         ..
                     } = &mut *parent
                     {
-                        // move separator key down
+                        // Pull separator down into current
                         curr_keys.push(parent_keys.remove(0));
 
-                        // merge right into current
+                        // Merge right into current
                         curr_keys.append(right_keys);
                         curr_children.append(right_children);
 
-                        // remove right sibling
+                        // Remove right sibling
                         parent_children.remove(1);
 
-                        // fix child parents
+                        // Update children
                         for ch in curr_children.iter() {
                             match &mut *ch.borrow_mut() {
                                 BTreeNode::Leaf { parent, .. }
@@ -1153,7 +1514,7 @@ impl BTree {
             }
         }
 
-        // recurse if parent underflows
+        // Check if parent underflowed and recurse if needed
         if let BTreeNode::Internal { keys, .. } = &*parent {
             if keys.len() < ((self.order + 1) / 2) - 1 {
                 drop(parent);
@@ -1192,7 +1553,6 @@ impl BTree {
                     }
 
                     BTreeNode::Leaf { data, .. } => {
-                        // Print leaf node keys
                         let keys: Vec<_> = data.iter().map(|e| e.key).collect();
                         print!("(L [{:?}]) ", keys);
                     }
@@ -1202,7 +1562,7 @@ impl BTree {
             println!();
             level += 1;
         }
-        println!("---------------");
+        println!("===============================");
     }
 
     /// Returns the leftmost (smallest) leaf node in the tree
@@ -1246,8 +1606,6 @@ impl BTreeNode {
                 next: _,
             } => {
                 if keys.len() > order {
-                    // FOR DEBUG
-                    // println!("OVERFLOW AT LEAF -> {:?}", keys);
                     return true;
                 }
             }
@@ -1291,17 +1649,21 @@ impl BTreeNode {
 
     /// Helper for working with leaf nodes through a closure
     /// Lets you modify leaf data without manual pattern matching everywhere
-    // This is a simple approach to matching every time.
-    // Borrow node mutably  ──────────────
-    //                                    │
-    //      +-----------------------+     │
-    //      | run your closure here | <───┘  (mutation allowed)
-    //      +-----------------------+
-    //                                    │
-    // Borrow ends automatically here ────┘
-    //
-    //
-    //
+    ///
+    /// CLOSURE-BASED MUTATION PATTERN
+
+    /// This is a convenience wrapper that:
+    /// 1. Borrows node mutably
+    /// 2. Runs your closure with access to leaf fields
+    /// 3. Automatically ends borrow when closure completes
+    ///
+    /// Example usage:
+    /// ```
+    /// node.as_mut_leaf(|parent, data, next| {
+    ///     data.push(entry);  // Modify the data
+    ///     *next = Some(...); // Update next pointer
+    /// });
+    /// ```
     fn as_mut_leaf<F, R>(&mut self, f: F) -> Option<R>
     where
         F: FnOnce(
@@ -1312,6 +1674,7 @@ impl BTreeNode {
     {
         match self {
             Self::Leaf { parent, data, next } => {
+                // Call the closure with mutable references to all leaf fields
                 let result = f(parent, data, next);
                 return Some(result);
             }
@@ -1320,6 +1683,7 @@ impl BTreeNode {
     }
 
     /// Read-only version of as_mut_leaf
+    /// Provides immutable access to leaf fields through a closure
     pub fn _as_ref_leaf<F, R>(&self, f: F) -> Option<R>
     where
         F: FnOnce(
@@ -1338,7 +1702,9 @@ impl BTreeNode {
     }
 
     /// Compares two leaf nodes by their key ranges
+    /// Used to verify the linked list ordering in tests
     pub fn _cmp(&mut self, other: &mut BTreeNode, ord: NodeCmpOrd) -> bool {
+        // Extract leaf data from both nodes
         let a;
         let b;
         match self._as_raw_leaf() {
@@ -1355,8 +1721,11 @@ impl BTreeNode {
             _ => return false,
         }
 
+        // Compare based on ordering type
         match ord {
             NodeCmpOrd::Less => {
+                // Check if ALL keys in 'a' are less than ALL keys in 'b'
+                // This verifies proper ordering in the linked list
                 return a.data.last().as_ref().unwrap().key < b.data.first().as_ref().unwrap().key;
             }
         }
@@ -1364,14 +1733,31 @@ impl BTreeNode {
 
     /// Checks if this node has enough keys to lend one to a sibling
     /// Without going below the minimum
+    ///
+    /// MINIMUM KEY CALCULATION
+
+    /// For order N:
+    ///   Minimum keys = ceil(N/2) - 1
+    ///
+    /// Examples:
+    ///   order=3: min = ceil(3/2) - 1 = 2 - 1 = 1
+    ///   order=4: min = ceil(4/2) - 1 = 2 - 1 = 1
+    ///   order=5: min = ceil(5/2) - 1 = 3 - 1 = 2
+    ///
+    /// A node can borrow if:
+    ///   (current_keys - 1) >= minimum_keys
     pub fn can_borrow(&self, order: usize) -> bool {
         match self {
             BTreeNode::Leaf {
                 parent: _,
                 data,
                 next: _,
-            } => (data.len() - 1) as f32 >= (order as f32 / 2.0).ceil() - 1.0,
+            } => {
+                // Check if removing one entry still keeps us above minimum
+                (data.len() - 1) as f32 >= (order as f32 / 2.0).ceil() - 1.0
+            }
             BTreeNode::Internal { keys, .. } => {
+                // Same logic for internal nodes
                 (keys.len() - 1) as f32 >= (order as f32 / 2.0).ceil() - 1.0
             }
         }
@@ -1379,33 +1765,50 @@ impl BTreeNode {
 
     /// Finds the left sibling of this node
     /// Returns the sibling and its position in the parent's children array
+    ///
+    /// SIBLING FINDING LOGIC
+    ///  
+    /// To find the left sibling:
+    /// 1. Get our parent
+    /// 2. Find our position in parent's children array
+    /// 3. If position > 0, the node at position-1 is our left sibling
+    /// 4. If position == 0, we're the leftmost child (no left sibling)
     pub fn left_sibling(
         node_rc: Rc<RefCell<BTreeNode>>,
     ) -> Option<(Rc<RefCell<BTreeNode>>, usize)> {
+        // CASE 1: Node is a leaf
+        //  =
         if node_rc.borrow().is_leaf() {
             if let BTreeNode::Leaf { parent, .. } = &*node_rc.borrow() {
+                // No parent means this is the root - no siblings
                 if parent.is_none() {
                     return None;
                 }
+
                 let curr_nd_prnt = parent.as_ref().unwrap().upgrade().unwrap();
+
                 if let BTreeNode::Internal {
                     parent: _,
                     children: prnt_children,
                     ..
                 } = &*curr_nd_prnt.borrow()
                 {
-                    // println!("{:#?}", prnt_children);
+                    // Find our position in parent's children
                     let pos = prnt_children
                         .iter()
                         .position(|child| Rc::ptr_eq(child, &node_rc));
+
+                    // If we're at position 0, we're leftmost
                     if let Some(0) = pos {
                         return None;
                     }
-                    // means we are the left_most
+
+                    // Position not found means error
                     if pos.is_none() {
                         return None;
                     }
 
+                    // Return left sibling and its position
                     return Some((
                         Rc::clone(&prnt_children[pos.unwrap() - 1]),
                         pos.unwrap() - 1,
@@ -1414,11 +1817,16 @@ impl BTreeNode {
             }
         };
 
+        // CASE 2: Node is internal
+        //
         if let BTreeNode::Internal { parent, .. } = &*node_rc.borrow() {
+            // Check if parent exists and is valid
             if parent.as_ref().unwrap().upgrade().is_none() {
                 return None;
             }
+
             let prnt = parent.as_ref().unwrap().upgrade().unwrap();
+
             if let BTreeNode::Internal {
                 children: prnt_ch, ..
             } = &*prnt.borrow()
@@ -1428,6 +1836,7 @@ impl BTreeNode {
                     .position(|child| Rc::ptr_eq(child, &node_rc))
                     .unwrap();
 
+                // Leftmost child has no left sibling
                 if pos == 0 {
                     return None;
                 }
@@ -1440,28 +1849,41 @@ impl BTreeNode {
 
     /// Finds the right sibling of this node
     /// Returns the sibling and its position in the parent's children array
+    ///
+    /// SIBLING FINDING LOGIC
+    ///  
+    /// To find the right sibling:
+    /// 1. Get our parent
+    /// 2. Find our position in parent's children array
+    /// 3. If position+1 < children.len(), node at position+1 is our right sibling
+    /// 4. Otherwise, we're the rightmost child (no right sibling)
     pub fn right_sibling(
         node_rc: Rc<RefCell<BTreeNode>>,
     ) -> Option<(Rc<RefCell<BTreeNode>>, usize)> {
-        // Case 1: LEAF NODE
+        // CASE 1: LEAF NODE
+        //
         if let BTreeNode::Leaf { parent, .. } = &*node_rc.borrow() {
+            // Use ? operator for clean error handling
+            // Returns None if parent doesn't exist or upgrade fails
             let parent = parent.as_ref()?.upgrade()?;
 
             if let BTreeNode::Internal { children, .. } = &*parent.borrow() {
+                // Find our position
                 let pos = children
                     .iter()
                     .position(|child| Rc::ptr_eq(child, &node_rc))?;
 
-                // right sibling exists only if index + 1 < children.len()
+                // Right sibling exists only if index + 1 < children.len()
                 if pos + 1 < children.len() {
                     return Some((Rc::clone(&children[pos + 1]), pos + 1));
                 } else {
-                    return None;
+                    return None; // We're rightmost
                 }
             }
         }
 
-        // Case 2: INTERNAL NODE
+        // CASE 2: INTERNAL NODE
+        //
         if let BTreeNode::Internal { parent, .. } = &*node_rc.borrow() {
             let parent = parent.as_ref()?.upgrade()?;
 
@@ -1484,20 +1906,35 @@ impl BTreeNode {
 
 /// Iterator implementation to walk through leaf nodes
 /// Follows the 'next' pointer from leaf to leaf
+///
+/// LINKED LIST TRAVERSAL
+
+/// B+Trees maintain a linked list of leaf nodes for efficient range scans
+///
+/// Example:
+/// ```
+/// let mut current = tree.leftmost_leaf();
+/// while let Some(next) = current.next() {
+///     // Process each leaf in order
+///     current = next;
+/// }
+/// ```
 impl Iterator for BTreeNode {
     type Item = Rc<RefCell<BTreeNode>>;
+
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Leaf {
                 parent: _, next, ..
             } => match next {
                 Some(c_next) => {
+                    // Clone the Rc to return ownership of the next node
                     let next = Rc::clone(c_next);
                     return Some(next);
                 }
-                None => return None,
+                None => return None, // End of linked list
             },
-            _ => None,
+            _ => None, // Internal nodes don't participate in iteration
         }
     }
 }
