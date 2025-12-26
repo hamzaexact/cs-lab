@@ -39,48 +39,100 @@ pub struct BTree {
 /// ```text
 /// [10, 15, 18] -> [20, 25, 30] -> [40, 45]
 /// ```
+/// A node in the B+Tree - either Internal (for navigation) or Leaf (stores data)
 #[derive(Debug)]
 pub enum BTreeNode {
+    /// Internal nodes guide searches but don't store data
+    /// They contain keys for routing and pointers to child nodes
     Internal {
+        /// Weak pointer to parent node (prevents reference cycles)
+        /// None if this is the root
         parent: Option<Weak<RefCell<BTreeNode>>>,
+
+        /// Separator keys used for navigation
+        /// If keys = [20, 40], then: child[0] has keys <20, child[1] has 20-40, child[2] has ≥40
+        /// Must have: keys.len() + 1 == children.len()
         keys: Vec<i32>,
+
+        /// Pointers to child nodes (can be Internal or Leaf)
+        /// Always has one more child than keys: N keys → N+1 children
         children: Vec<Rc<RefCell<BTreeNode>>>,
     },
 
+    /// Leaf nodes store the actual data entries
+    /// All leaves form a sorted linked list via 'next' pointers
     Leaf {
+        /// Weak pointer to parent Internal node
+        /// None if this leaf is the root (single-node tree)
         parent: Option<Weak<RefCell<BTreeNode>>>,
+
+        /// The actual data entries, sorted by key
+        /// This is where all tree data lives - internal nodes never store data
         data: Vec<Entry>,
+
+        /// Pointer to next leaf in the linked list (for range scans)
+        /// None if this is the rightmost leaf
         next: Option<Rc<RefCell<BTreeNode>>>,
     },
 }
 
+/// Helper struct providing mutable access to leaf node fields
+/// Used to avoid repetitive pattern matching when working with leaves
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct LeafNode<'l> {
-    // 'l => leaf
+    /// Mutable reference to the parent pointer
     pub parent: &'l mut Option<Weak<RefCell<BTreeNode>>>,
+
+    /// Mutable reference to the data entries
     pub data: &'l mut Vec<Entry>,
+
+    /// Mutable reference to the next-leaf pointer
     pub next: &'l mut Option<Rc<RefCell<BTreeNode>>>,
 }
 
+/// A key-value entry stored in leaf nodes
+/// Contains the search key and associated data payload
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Entry {
+    /// The search key used for ordering and lookups
     pub key: i32,
+
+    /// The data payload associated with this key
+    /// In a real database, this might be a row ID or serialized record
     pub data: String,
 }
 
+/// Comparison ordering for comparing two nodes
+/// Currently only supports checking if one node's keys are all less than another's
 #[allow(dead_code)]
 pub enum NodeCmpOrd {
+    /// Check if all keys in first node < all keys in second node
+    /// Used to verify linked list ordering in tests
     Less,
 }
 
-/// Determines what action to take when deleting from an underflowing node
+/// Strategy enum returned by delete_planner() to handle different deletion scenarios
+/// Determines what action to take when deleting from a node that might underflow
 pub enum DeletePlanner {
+    /// Tree is empty or key doesn't exist - do nothing
     Empty,
+
+    /// Node has enough keys after deletion - just remove the key directly
+    /// Happens when: (keys_after_delete) ≥ ⌈order/2⌉ - 1
     Simple,
+
+    /// Node will underflow, but right sibling can lend a key
+    /// Move one key from right sibling and update parent separator
     RightBorrow,
+
+    /// Node will underflow, but left sibling can lend a key
+    /// Move one key from left sibling and update parent separator
     LeftBorrow,
+
+    /// Node will underflow and siblings can't help - must merge with a sibling
+    /// May cause parent to underflow, triggering recursive fixes
     Merge,
 }
 
