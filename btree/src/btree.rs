@@ -1,7 +1,3 @@
-//
-#![allow(unused)]
-//
-//
 // B+Tree Implementation with Generics and Binary Search
 // December 26, 2025
 //
