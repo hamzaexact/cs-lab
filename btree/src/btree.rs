@@ -111,8 +111,9 @@ where
     /// Creates a new empty B+Tree with the specified order
     ///
     /// Example:
-    /// ```
-    // let mut tree = BTree::new(5); // order 5 means max 5 keys per node    pub fn new(order: usize) -> Self {
+    /// ``` ignore
+    // let mut tree = BTree::new(5); // order 5 means max 5 keys per node  
+    //
     pub fn new(order: usize) -> Self {
         Self { root: None, order }
     }
