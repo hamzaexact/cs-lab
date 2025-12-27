@@ -1,5 +1,0 @@
-//
-#![allow(warnings)]
-//
-
-fn main() {}
