@@ -1,13 +1,14 @@
 // B+Tree Implementation with Generics and Binary Search
 // December 26, 2025
 //
-// A learning-focused B+Tree implementation in Rust with:
-// - Generic key-value pairs (K, V)
-// - Binary search for improved performance
-// - All data lives in leaf nodes
-// - Internal nodes only store keys for navigation
-// - Leaf nodes are linked together (like a linked list)
-// - Supports insert, search, and delete with automatic rebalancing
+// *Not fully optimized 
+//
+// All data lives in leaf nodes
+// * Internal nodes only store keys for navigation
+// * Leaf nodes are linked together (like a linked list)
+// * Supports insert, search, and delete with automatic rebalancing
+//
+// Read more about B+Trees: https://en.wikipedia.org/wiki/B%2B_tree
 
 use std::{
     cell::RefCell,
