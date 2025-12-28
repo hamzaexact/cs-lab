@@ -1,7 +1,7 @@
 // B+Tree Implementation with Generics and Binary Search
 // December 26, 2025
 //
-// *Not fully optimized 
+// *Not fully optimized
 //
 // All data lives in leaf nodes
 // * Internal nodes only store keys for navigation
@@ -42,6 +42,8 @@ where
 /// ```text
 /// [10, 15, 18] -> [20, 25, 30] -> [40, 45]
 ///
+///
+/// A node in the B+Tree - either Internal (for navigation) or Leaf (stores data)
 #[derive(Debug)]
 pub enum BTreeNode<K, V>
 where
@@ -49,21 +51,43 @@ where
     V: Clone,
 {
     /// Internal nodes guide searches but don't store data
+    /// They contain keys for routing and pointers to child nodes
     Internal {
+
+        /// Weak pointer to parent node (prevents reference cycles)
+        /// None if this is the root
         parent: Option<Weak<RefCell<BTreeNode<K, V>>>>,
+
+        /// Separator keys used for navigation
+        /// If keys = [20, 40], then: child[0] has keys <20, child[1] has 20-40, child[2] has ≥40
+        /// Must have: keys.len() + 1 == children.len()
         keys: Vec<K>,
+
+        /// Pointers to child nodes (can be Internal or Leaf)
+        /// Always has one more child than keys: N keys → N+1 children
         children: Vec<Rc<RefCell<BTreeNode<K, V>>>>,
     },
 
+
     /// Leaf nodes store the actual data entries
+    /// All leaves form a sorted linked list via 'next' pointers
     Leaf {
+
+        /// Weak pointer to parent Internal node
+        /// None if this leaf is the root (single-node tree)
         parent: Option<Weak<RefCell<BTreeNode<K, V>>>>,
+
+        /// The actual data entries, sorted by key
+        /// This is where all tree data lives - internal nodes never store data
         data: Vec<Entry<K, V>>,
+
+        /// Pointer to next leaf in the linked list (for range scans)
+        /// None if this is the rightmost leaf
         next: Option<Rc<RefCell<BTreeNode<K, V>>>>,
     },
 }
-
 /// Helper struct providing mutable access to leaf node fields
+/// Used to avoid repetitive pattern matching when working with leaves
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct LeafNode<'l, K, V>
@@ -71,8 +95,13 @@ where
     K: Ord + Clone,
     V: Clone,
 {
+    /// Mutable reference to the parent pointer
     pub parent: &'l mut Option<Weak<RefCell<BTreeNode<K, V>>>>,
+
+    /// Mutable reference to the data entries
     pub data: &'l mut Vec<Entry<K, V>>,
+
+    /// Mutable reference to the next-leaf pointer
     pub next: &'l mut Option<Rc<RefCell<BTreeNode<K, V>>>>,
 }
 
@@ -84,22 +113,45 @@ where
     K: Ord + Clone,
     V: Clone,
 {
-    pub key: K,
-    pub val: V,
+        /// The search key used for ordering and lookups
+        pub key: K,
+
+        /// The data (V) payload associated with this key
+        /// In a real database, this might be a row ID or serialized record
+        pub val: V,
 }
 
 /// Comparison ordering for comparing two nodes
+/// Currently only supports checking if one node's keys are all less than another's
 #[allow(dead_code)]
 pub enum NodeCmpOrd {
+
+    /// Check if all keys in first node < all keys in second node
+    /// Used to verify linked list ordering in tests
     Less,
 }
 
-/// Strategy enum for delete operations
+/// Strategy enum returned by delete_planner() to handle different deletion scenarios
+/// Determines what action to take when deleting from a node that might underflow
 pub enum DeletePlanner {
+
+    /// Tree is empty or key doesn't exist - do nothing
     Empty,
+
+    /// Node has enough keys after deletion - just remove the key directly
+    /// Happens when: (keys_after_delete) ≥ ⌈order/2⌉ - 1
     Simple,
+
+    /// Node will underflow, but right sibling can lend a key
+    /// Move one key from right sibling and update parent separator
     RightBorrow,
+
+    /// Node will underflow, but left sibling can lend a key
+    /// Move one key from left sibling and update parent separator
     LeftBorrow,
+
+    /// Node will underflow and siblings can't help - must merge with a sibling
+    /// May cause parent to underflow, triggering recursive fixes
     Merge,
 }
 
@@ -112,7 +164,7 @@ where
     ///
     /// Example:
     /// ``` ignore
-    // let mut tree = BTree::new(5); // order 5 means max 5 keys per node  
+    // let mut tree = BTree::new(5); // order 5 means max 5 keys per node
     //
     pub fn new(order: usize) -> Self {
         Self { root: None, order }
@@ -163,7 +215,7 @@ where
                     BTreeNode::Internal { keys, children, .. } => {
                         // INTERNAL NODE NAVIGATION
                         // Internal nodes act as signposts. Their keys tell us which path to take.
-                        // 
+                        //
                         // Example with keys [20, 40, 60]:
                         //
                         //         [20 | 40 | 60]
@@ -174,7 +226,7 @@ where
                         // If searching for 35:
                         //   - 35 >= 20, so skip child0
                         //   - 35 < 40, so take child1
-                        
+
                         let idx = match keys.binary_search(key) {
                             Ok(i) => i + 1, // Key found, go to right child
                             Err(i) => i,    // Key not found, i is insertion point
@@ -400,7 +452,7 @@ where
                 // Left child's 'next' pointer now points to right sibling
                 // This maintains the linked list of leaves for range scans
                 *next = Some(Rc::clone(&right_child));
-                
+
 
                 // SPECIAL CASE: Root split
 
@@ -418,14 +470,14 @@ where
                 } else {
                     // NORMAL CASE: Parent already has children
                     // Find where the left (original) leaf is in parent's children array
-                    
+
 
                     let left_index = parent_children
                         .iter()
                         .position(|child| Rc::ptr_eq(child, &leaf))
                         .unwrap();
 
-                    
+
                     // Insert the separator key at the appropriate position
                     // Example: if left_index=1, parent keys [20, 40, 60]
                     //          inserting 30 at position 1 gives [20, 30, 40, 60]
@@ -441,7 +493,7 @@ where
                 }
             }
             // Manually drop borrows to prevent borrowing conflicts later
-            // This is necessary because we might need to recursively split the parent 
+            // This is necessary because we might need to recursively split the parent
             drop(leaf_parent);
             drop(mut_leaf_ptr);
         }
@@ -579,7 +631,7 @@ where
                     parent_children.push(Rc::clone(&right_node));
                 } else {
                     // NORMAL CASE
-                    
+
                     // Find where the left node is in parent's children
                     let left_index = parent_children
                         .iter()
@@ -613,7 +665,7 @@ where
     /// The process handles several cases:
     /// 1. Simple delete (node still has enough keys)
     /// 2. Borrow from right sibling
-    /// 3. Borrow from left sibling  
+    /// 3. Borrow from left sibling
     /// 4. Merge with sibling
     ///
     /// Example of borrowing:
@@ -701,7 +753,7 @@ where
 
             (DeletePlanner::RightBorrow, r_leaf, pos) => {
                 // BORROW FROM RIGHT
-                
+
                 // Right sibling has extra keys
                 // Move one key from right sibling to current node
                 return self.right_borrow(Rc::clone(&leaf_rc), key, r_leaf, pos);
@@ -709,7 +761,7 @@ where
 
             (DeletePlanner::LeftBorrow, left_sibl, left_sibl_pos) => {
                 // BORROW FROM LEFT
-                
+
                 // Left sibling has extra keys
                 // Move one key from left sibling to current node
                 return self.left_borrow(key, leaf_rc, left_sibl, left_sibl_pos);
@@ -717,7 +769,7 @@ where
 
             _ => {
                 // MERGE CASE
-                
+
                 // Neither sibling can lend a key
                 // Must merge this node with a sibling
                 return self.merge_leaf(leaf_rc, key);
@@ -735,7 +787,7 @@ where
     ) -> (DeletePlanner, Rc<RefCell<BTreeNode<K, V>>>, usize) {
 
         // DELETION PLANNING ALGORITHM
-        
+
 
         // This function determines the safest way to delete a key
         // without violating B+Tree properties
@@ -834,7 +886,7 @@ where
         right_sibling_pos: usize,
     ) -> bool {
         // RIGHT BORROW PROCESS
-        // 
+        //
         // Before:
         //           Parent: [40]
         //           /           \
@@ -888,7 +940,7 @@ where
         left_sibl_pos: usize,
     ) -> bool {
         // LEFT BORROW PROCESS
-        
+
         //
         // Before:
         //           Parent: [40]
@@ -947,7 +999,7 @@ where
         //           /           \
         //       [10,20]      [30,50,60]
         let mut underflowed_parent: Option<_> = None;
-        
+
         let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
 
         // We are the leftmost node
@@ -980,7 +1032,7 @@ where
 
                     // Merge: move all data from right sibling to current
                     curr_node_data.append(data);
-                    
+
 
                     // Update linked list pointer
                     if next.is_none() {
@@ -1009,7 +1061,7 @@ where
                 self.fix_parent_underflow(underflowed_parent.unwrap());
             }
 
-        } 
+        }
         // We have a left sibling - merge with it
         else if left_sibl.is_some() {
             let (left_sibling, curr_left_sib_pos) = left_sibl.unwrap();
@@ -1078,7 +1130,7 @@ where
     /// Special case: if root ends up with only 1 child, make that child the new root
     fn fix_parent_underflow(&mut self, node_rc: Rc<RefCell<BTreeNode<K, V>>>) {
         // SPECIAL CASE: Root with single child
-        
+
         // If the root has no keys and only one child, the tree shrinks in height
         //
         // Before:      Root: [ ]
@@ -1326,7 +1378,7 @@ where
                         }
                     }
                 }
-            } 
+            }
             // CASE B: Merge with right sibling (we're leftmost ( pos == 0 ))
             else {
                 let right_sibling = if let BTreeNode::Internal { children, .. } = &*parent {
@@ -1496,7 +1548,7 @@ where
     /// Lets you modify leaf data without manual pattern matching everywhere
     ///
     /// CLOSURE-BASED MUTATION PATTERN
-    
+
     /// This is a convenience wrapper that:
     /// 1. Borrows node mutably
     /// 2. Runs your closure with access to leaf fields
@@ -1575,7 +1627,7 @@ where
     /// Without going below the minimum
     ///
     /// MINIMUM KEY CALCULATION
-    
+
     /// For order N:
     ///   Minimum keys = ceil(N/2) - 1
     ///
@@ -1601,7 +1653,7 @@ where
     /// Returns the sibling and its position in the parent's children array
     ///
     /// SIBLING FINDING LOGIC
-    
+
     /// To find the left sibling:
     /// 1. Get our parent
     /// 2. Find our position in parent's children array
@@ -1673,7 +1725,7 @@ where
     /// Returns the sibling and its position in the parent's children array
     ///
     /// SIBLING FINDING LOGIC
-    
+
     /// To find the right sibling:
     /// 1. Get our parent
     /// 2. Find our position in parent's children array
