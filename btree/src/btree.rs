@@ -1,4 +1,4 @@
-// B+Tree Implementation with Generics and Binary Search
+// B+Tree Implementation
 // December 26, 2025
 //
 // *Not fully optimized
@@ -9,7 +9,6 @@
 // * Supports insert, search, and delete with automatic rebalancing
 //
 // Read more about B+Trees: https://en.wikipedia.org/wiki/B%2B_tree
-
 use std::{
     cell::RefCell,
     rc::{Rc, Weak},
@@ -86,7 +85,7 @@ where
         next: Option<Rc<RefCell<BTreeNode<K, V>>>>,
     },
 }
-/// Helper struct providing mutable access to leaf node fields
+// K?
 /// Used to avoid repetitive pattern matching when working with leaves
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -120,6 +119,7 @@ where
         /// In a real database, this might be a row ID or serialized record
         pub val: V,
 }
+
 
 /// Comparison ordering for comparing two nodes
 /// Currently only supports checking if one node's keys are all less than another's
@@ -1725,7 +1725,6 @@ where
     /// Returns the sibling and its position in the parent's children array
     ///
     /// SIBLING FINDING LOGIC
-
     /// To find the right sibling:
     /// 1. Get our parent
     /// 2. Find our position in parent's children array
