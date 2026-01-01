@@ -1,4 +1,4 @@
-# Rust Data Structures Practice
+# Data Structure in Rust
 
 This repository contains **practice implementations of data structures in Rust**.
 
