@@ -183,7 +183,6 @@ where
         // Case 3: Root is an internal node, so we have data somewhere
         false
     }
-
     /// Searches for a key in the tree and returns the entry if found
     ///
     /// How it works:
@@ -1002,8 +1001,8 @@ where
 
         let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
 
-        // We are the leftmost node
-        if left_sibl.is_none() {
+        // We are the leftmost node 
+        if left_sibl.is_none() { 
             // No left sibling, so merge with right sibling instead
             // We'll absorb the right sibling's data
             let (right_sibl, _) = BTreeNode::right_sibling(Rc::clone(&leaf_rc)).unwrap();
