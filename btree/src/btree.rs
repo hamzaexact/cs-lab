@@ -52,8 +52,8 @@ where
     /// Internal nodes guide searches but don't store data
     /// They contain keys for routing and pointers to child nodes
     Internal {
-
         /// Weak pointer to parent node (prevents reference cycles)
+        ///  
         /// None if this is the root
         parent: Option<Weak<RefCell<BTreeNode<K, V>>>>,
 
@@ -67,11 +67,9 @@ where
         children: Vec<Rc<RefCell<BTreeNode<K, V>>>>,
     },
 
-
     /// Leaf nodes store the actual data entries
     /// All leaves form a sorted linked list via 'next' pointers
     Leaf {
-
         /// Weak pointer to parent Internal node
         /// None if this leaf is the root (single-node tree)
         parent: Option<Weak<RefCell<BTreeNode<K, V>>>>,
@@ -112,20 +110,18 @@ where
     K: Ord + Clone,
     V: Clone,
 {
-        /// The search key used for ordering and lookups
-        pub key: K,
+    /// The search key used for ordering and lookups
+    pub key: K,
 
-        /// The data (V) payload associated with this key
-        /// In a real database, this might be a row ID or serialized record
-        pub val: V,
+    /// The data (V) payload associated with this key
+    /// In a real database, this might be a row ID or serialized record
+    pub val: V,
 }
-
 
 /// Comparison ordering for comparing two nodes
 /// Currently only supports checking if one node's keys are all less than another's
 #[allow(dead_code)]
 pub enum NodeCmpOrd {
-
     /// Check if all keys in first node < all keys in second node
     /// Used to verify linked list ordering in tests
     Less,
@@ -134,7 +130,6 @@ pub enum NodeCmpOrd {
 /// Strategy enum returned by delete_planner() to handle different deletion scenarios
 /// Determines what action to take when deleting from a node that might underflow
 pub enum DeletePlanner {
-
     /// Tree is empty or key doesn't exist - do nothing
     Empty,
 
@@ -198,6 +193,7 @@ where
     ///   found here
     /// ```
     pub fn search(&self, key: &K) -> Option<Entry<K, V>> {
+        
         if self.root.is_none() {
             return None;
         }
@@ -207,7 +203,7 @@ where
         // PHASE 1: Navigate down the tree to find the correct leaf
         // This loop continues until we reach a leaf node.
         // At each internal node, we decide which child to follow based on key comparisons.
-        let _ = loop {
+        loop {
             let next = {
                 let node = current.borrow();
                 match &*node {
@@ -452,15 +448,14 @@ where
                 // This maintains the linked list of leaves for range scans
                 *next = Some(Rc::clone(&right_child));
 
-
                 // SPECIAL CASE: Root split
 
                 // This is the first split ever. The parent is empty and just became root.
-                    // Tree structure before:  [10, 20, 30, 40] (single leaf, is root)
-                    // Tree structure after:
-                    //                              [30]
-                    //                             /    \
-                    //                        [10,20]  [30,40]
+                // Tree structure before:  [10, 20, 30, 40] (single leaf, is root)
+                // Tree structure after:
+                //                              [30]
+                //                             /    \
+                //                        [10,20]  [30,40]
 
                 if parent_children.is_empty() {
                     parent_children.push(Rc::clone(&leaf));
@@ -470,12 +465,10 @@ where
                     // NORMAL CASE: Parent already has children
                     // Find where the left (original) leaf is in parent's children array
 
-
                     let left_index = parent_children
                         .iter()
                         .position(|child| Rc::ptr_eq(child, &leaf))
                         .unwrap();
-
 
                     // Insert the separator key at the appropriate position
                     // Example: if left_index=1, parent keys [20, 40, 60]
@@ -496,12 +489,15 @@ where
             drop(leaf_parent);
             drop(mut_leaf_ptr);
         }
-
-        if overflowed_parent.is_some() {
-            // If the parent overflowed, we need to split it too
-            // This can cascade all the way up to the root
-            self.split_internal(overflowed_parent.unwrap());
+        if let Some(ref overflowed_parent) = overflowed_parent {
+            self.split_internal(Rc::clone(overflowed_parent));
         }
+        // *died-code
+        // if overflowed_parent.is_some() {
+        //     // If the parent overflowed, we need to split it too
+        //     // This can cascade all the way up to the root
+        //     self.split_internal(overflowed_parent.unwrap());
+        // }
     }
 
     /// Splits an overflowing internal node
@@ -513,21 +509,50 @@ where
     fn split_internal(&mut self, node: Rc<RefCell<BTreeNode<K, V>>>) {
         // We're splitting an internal node that looks like this:
         //
-        //              PARENT
-        //                 |
-        //                 v
-        //         LEFT NODE (to split)
-        //        /  |  |  \   (has too many children)
-        //       /   |  |   \
-        //      C0  C1 C2  C3
+        /*
+                           +-----------+
+                       +---+  Parent   |
+                       |   +-----------+
+                       |                
+                       |                
+                       |                
+                       |                
+                   +---------+           
+                   | LEFT    | (to Split; has too many children) 
+              +----+   NODE  +--+         
+              |    -+----+---+  |         
+              |     |    |      |         
+              |     |    |      |         
+              |     |    |      |         
+              |     |    |      |         
+            +---+ +---+ +---+  +---+     
+            |C1 | |C2 | |C3 |  |C4 |     
+            +---+ +---+ +---+  +---+
+        */
+        //
+        //
+        //
         //
         // After split:
-        //
-        //              PARENT
-        //             /      \
-        //       LEFT NODE  RIGHT NODE
-        //        /    \      /    \
-        //       C0    C1    C2    C3
+        /*
+                            +-----------+                
+                     +------+  PARENT   +------+         
+                     |      +-----------+      |         
+                     |                         |         
+                     |                         |         
+                     |                         |         
+                     v                         v         
+                 +--------+                +-------+     
+              +--+ LEFT   +-+           +--+ RIGHT +--+  
+              |  +--------+ |           |  +-------+  |  
+              |             |           |             |  
+              |             |           |             |  
+            +---+         +---+       +---+         +---+
+            |C1 |         |C2 |       |C3 |         |C4 |
+            +---+         +---+       +---+         +---+
+
+        */
+
         //
         // The middle key from LEFT NODE gets promoted to PARENT
         let mut overflowed_parent: Option<Rc<RefCell<BTreeNode<K, V>>>> = None;
@@ -696,7 +721,6 @@ where
         // Find the leaf containing the key
         let leaf_rc = self.find_leaf(key);
 
-
         // Special case - deleting from root
         if Rc::ptr_eq(&leaf_rc, self.root.as_ref().unwrap()) {
             let state = leaf_rc.borrow_mut().as_mut_leaf(|_, data, _| {
@@ -724,7 +748,6 @@ where
         //   - Must we merge? (Merge)
 
         let plan = self.delete_planner(key, Rc::clone(&leaf_rc));
-
 
         // Execute the deletion plan
         match plan {
@@ -774,7 +797,6 @@ where
                 return self.merge_leaf(leaf_rc, key);
             }
         }
-
     }
 
     /// Decides which deletion strategy to use based on the tree state
@@ -784,9 +806,7 @@ where
         _: &K,
         leaf_rc: Rc<RefCell<BTreeNode<K, V>>>,
     ) -> (DeletePlanner, Rc<RefCell<BTreeNode<K, V>>>, usize) {
-
         // DELETION PLANNING ALGORITHM
-
 
         // This function determines the safest way to delete a key
         // without violating B+Tree properties
@@ -797,7 +817,6 @@ where
         //   3. Try borrowing from right sibling
         //   4. Try borrowing from left sibling
         //   5. Fall back to merge
-
 
         // Is this an empty root?
         if let BTreeNode::Internal { parent, keys, .. } = &*leaf_rc.borrow() {
@@ -983,7 +1002,6 @@ where
     /// Merges the underflowing node with a sibling
     /// May cause parent underflow, triggering recursive fixes
     pub fn merge_leaf(&mut self, leaf_rc: Rc<RefCell<BTreeNode<K, V>>>, key: &K) -> bool {
-
         // MERGE PROCESS
 
         // When neither sibling can lend a key, we must merge nodes
@@ -1001,8 +1019,8 @@ where
 
         let left_sibl = BTreeNode::left_sibling(Rc::clone(&leaf_rc));
 
-        // We are the leftmost node 
-        if left_sibl.is_none() { 
+        // We are the leftmost node
+        if left_sibl.is_none() {
             // No left sibling, so merge with right sibling instead
             // We'll absorb the right sibling's data
             let (right_sibl, _) = BTreeNode::right_sibling(Rc::clone(&leaf_rc)).unwrap();
@@ -1032,7 +1050,6 @@ where
                     // Merge: move all data from right sibling to current
                     curr_node_data.append(data);
 
-
                     // Update linked list pointer
                     if next.is_none() {
                         *curr_next = None;
@@ -1040,7 +1057,7 @@ where
                         *curr_next = Some(next.as_ref().map(Rc::clone).unwrap());
                     }
 
-                     // Update parent: remove separator and right child pointer
+                    // Update parent: remove separator and right child pointer
                     let t_prnt = l_prnt.as_ref().unwrap().upgrade().unwrap();
                     if let BTreeNode::Internal { keys, children, .. } = &mut *t_prnt.borrow_mut() {
                         keys.remove(0);
@@ -1059,7 +1076,6 @@ where
             if underflowed_parent.is_some() {
                 self.fix_parent_underflow(underflowed_parent.unwrap());
             }
-
         }
         // We have a left sibling - merge with it
         else if left_sibl.is_some() {
@@ -1534,14 +1550,12 @@ where
         }
     }
 
-
     pub fn _as_raw_leaf(&mut self) -> Option<LeafNode<'_, K, V>> {
         match self {
             BTreeNode::Leaf { parent, data, next } => Some(LeafNode { parent, data, next }),
             _ => None,
         }
     }
-
 
     /// Helper for working with leaf nodes through a closure
     /// Lets you modify leaf data without manual pattern matching everywhere
@@ -1777,10 +1791,10 @@ where
 ///
 /// Example:
 /// ```ignore
-    // let mut current = tree.leftmost_leaf();
-    // while let Some(next) = current.next() {
-    // Process each leaf in order
-    //     current = next;
+// let mut current = tree.leftmost_leaf();
+// while let Some(next) = current.next() {
+// Process each leaf in order
+//     current = next;
 /// }
 /// ```
 impl<K, V> Iterator for BTreeNode<K, V>
@@ -1794,8 +1808,7 @@ where
         match self {
             Self::Leaf { next, .. } => match next {
                 Some(c_next) => {
-                    let next = Rc::clone(c_next);
-                    Some(next)
+                    Some(Rc::clone(c_next))
                 }
                 None => None,
             },
@@ -1803,4 +1816,3 @@ where
         }
     }
 }
-
