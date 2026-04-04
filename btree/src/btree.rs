@@ -164,7 +164,6 @@ where
     pub fn new(order: usize) -> Self {
         Self { root: None, order }
     }
-
     // Case 1: No root exists at all
     pub fn _is_empty(&self) -> bool {
         if self.root.is_none() {
@@ -197,7 +196,6 @@ where
         if self.root.is_none() {
             return None;
         }
-
         let mut current = self.root.as_ref().map(Rc::clone).unwrap();
 
         // PHASE 1: Navigate down the tree to find the correct leaf
@@ -1816,3 +1814,4 @@ where
         }
     }
 }
+
