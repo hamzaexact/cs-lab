@@ -1,11 +1,11 @@
-// #![allow(dead_code)]
+#![allow(dead_code)]
 
+const MAX_VALUE_PER_NODE: i32 = 1;
 use std::{
     alloc::{Layout, alloc, realloc},
     mem,
     ptr::NonNull,
 };
-
 // #[derive(Debug)]
 // Layout
 pub(crate) struct CustomVec<T> {
@@ -26,6 +26,8 @@ impl<T> CustomVec<T> {
     pub fn grow(&mut self) {
         let align = mem::align_of::<T>();
         let elem_size = mem::size_of::<T>();
+        // cap * T.size?
+        // let lay = Layout::new::<Arr
         // let layout = Layout::new::<T>();
         let layout = unsafe { Layout::from_size_align_unchecked(elem_size, align) };
         let (new_cap, ptr) = {
@@ -35,17 +37,18 @@ impl<T> CustomVec<T> {
                     (1, ptr)
                 }
             } else {
+                let layout = Layout::array::<T>(self.cap).unwrap();
                 let old_num_bytes = self.cap * elem_size;
-                assert!(old_num_bytes <= isize::MAX as usize);
-                let new_cap = self.cap * 2;
+                assert!(old_num_bytes * 2 <= isize::MAX as usize);
 
+                let new_cap = self.cap * 2;
                 // re-allocation
                 let new_num_bytes = old_num_bytes * 2;
                 let ptr = unsafe { realloc(self.ptr.as_ptr() as *mut _, layout, new_num_bytes) };
                 (new_cap, ptr)
             }
         };
-        // Out of memory
+        // Out of Memory
         if ptr.is_null() {
             panic!()
         }
