@@ -65,4 +65,22 @@ impl<T> CustomVec<T> {
         self.cap = new_cap;
         self.ptr = unsafe { NonNull::new_unchecked(ptr as *mut _) };
     }
+
+    pub fn push(&mut self, elem: T) {
+        if self.len == self.cap {
+            self.grow();
+        }
+
+        unsafe {
+            std::ptr::write(self.ptr.offset(self.len as isize).as_ptr(), elem);
+        }
+        self.len += 1;
+    }
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            return None;
+        }
+        self.len -= 1;
+        unsafe { Some(std::ptr::read(self.ptr.offset(self.len as isize).as_ptr())) }
+    }
 }
