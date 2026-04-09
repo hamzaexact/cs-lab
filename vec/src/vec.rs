@@ -84,3 +84,29 @@ impl<T> CustomVec<T> {
         unsafe { Some(std::ptr::read(self.ptr.offset(self.len as isize).as_ptr())) }
     }
 }
+
+impl<T> Drop for CustomVec<T> {
+    fn drop(&mut self) {
+        if self.len != 0 {
+            #[allow(clippy::redundant_pattern_matching)]
+            while let Some(_) = self.pop() {}
+            unsafe {
+                let layout = Layout::array::<T>(self.cap).unwrap();
+                std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+            }
+        }
+    }
+}
+
+impl<T> std::ops::Deref for CustomVec<T> {
+    type Target = [T];
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl<T> std::ops::DerefMut for CustomVec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
+    }
+}
