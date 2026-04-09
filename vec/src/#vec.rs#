@@ -1,16 +1,7 @@
 // #![allow(dead_code)]
-
 fn solve() {
-    let mut int_vec: Vec<i32> = Vec::new();
-    if int_vec.is_empty() {
-        return;
-    }
-}
-struct Node {
-    val: i32,
-    next: *mut Nod,
-}
-
+   let mut int_vec:Vec<i32> = Vec::new();
+   if int_vec.is_empty(
 use std::{
     alloc::{Layout, alloc, realloc},
     mem,
@@ -60,9 +51,10 @@ impl<T> CustomVec<T> {
         };
         // Out of Memory
         if ptr.is_null() {
+            // std::alloc::handle_alloc_error(layout);
             std::alloc::handle_alloc_error(layout);
         }
         self.cap = new_cap;
-        self.ptr = unsafe { NonNull::new_unchecked(ptr as *mut _) };
+        self.ptr = unsafe { NonNull::new_unchecked(ptr as *mut _) }
     }
 }
