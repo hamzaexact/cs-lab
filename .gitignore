@@ -1,7 +1,10 @@
 Cargo.lock
 Cargo.toml
 btree/target/
+/vec/target/
 btree/.DS_Store
+vec/.DS_Store
 btree/.idea/
+vec/.idea/
 .DS_Store
 e.md
