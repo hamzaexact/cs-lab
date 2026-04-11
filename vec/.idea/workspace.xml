@@ -12,11 +12,84 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eb1c03cd-d7a5-4865-9391-8d66053081c3" name="Changes" comment="firs commit">
-      <change beforePath="$PROJECT_DIR$/../btree/src/btree.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../btree/src/btree.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vec.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vec.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/#vec.rs#" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/.#vec.rs" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/vec.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/vec.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/.rustc_info.json" beforeDir="false" afterPath="$PROJECT_DIR$/target/.rustc_info.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/.fingerprint/vec-356fdf5219cad86c/output-test-bin-vec" beforeDir="false" afterPath="$PROJECT_DIR$/target/debug/.fingerprint/vec-356fdf5219cad86c/output-test-bin-vec" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/.fingerprint/vec-69fbab7035b3cced/bin-vec" beforeDir="false" afterPath="$PROJECT_DIR$/target/debug/.fingerprint/vec-69fbab7035b3cced/bin-vec" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/.fingerprint/vec-69fbab7035b3cced/output-bin-vec" beforeDir="false" afterPath="$PROJECT_DIR$/target/debug/.fingerprint/vec-69fbab7035b3cced/output-bin-vec" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/deps/vec-31a100a09b472004" beforeDir="false" afterPath="$PROJECT_DIR$/target/debug/deps/vec-31a100a09b472004" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/07c4tqj89ly7zbv08rwc8mnje.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/08kf2wcy70tktpnb8k7ycevln.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/0g8dqqndrqdjabrq83l7d73et.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/26ex5srlwms4qhoikppj1hmge.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/4adv2mfrum22t0sy36les5970.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/5nczkhzyu3i9adu2f27gupflf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/6w0bbt9yimceq5dci6necghga.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/6xjfv1c0y93jua7ynz83hdv54.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/823bit03ojj0uskrz40ji7o25.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/896o4e7zq35ih534vx7o690f8.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/br0vt3x1lkj5grvz7xp4ffjup.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/br1o4z8p34p6ryi6jmt27rtf7.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/c8ay7cr4tcsa5rbia2lgdnf5o.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/cr419dk55wg007qt8qox75loo.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/dcq02goekv78elhvk8ivcaie0.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/dkgf6ghwxmtyjynuxgzrsxyrf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx-2l2croururq2n8skuz8cl4efv/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc53wd1ti-1la6zgx.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/07c4tqj89ly7zbv08rwc8mnje.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/08kf2wcy70tktpnb8k7ycevln.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/0g8dqqndrqdjabrq83l7d73et.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/1zgol5d475b1d9s9gbv69yrik.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/26ex5srlwms4qhoikppj1hmge.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/4adv2mfrum22t0sy36les5970.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/5nczkhzyu3i9adu2f27gupflf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/6w0bbt9yimceq5dci6necghga.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/6xjfv1c0y93jua7ynz83hdv54.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/823bit03ojj0uskrz40ji7o25.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/896o4e7zq35ih534vx7o690f8.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/ac8r8a7y2y871e4k0i45atz03.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/br0vt3x1lkj5grvz7xp4ffjup.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/br1o4z8p34p6ryi6jmt27rtf7.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/c8ay7cr4tcsa5rbia2lgdnf5o.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/cr419dk55wg007qt8qox75loo.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/dcq02goekv78elhvk8ivcaie0.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/dkgf6ghwxmtyjynuxgzrsxyrf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5-4nzac8vccvtv4k8j9kq2ler2i/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-0aqbjxsm4nai0/s-hhc547gpah-1rxa3o5.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc54pv6f2-1m1bxkd-agx2kx6w2wmvvooj5fou4egpz/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc54pv6f2-1m1bxkd-agx2kx6w2wmvvooj5fou4egpz/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc54pv6f2-1m1bxkd-agx2kx6w2wmvvooj5fou4egpz/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc54pv6f2-1m1bxkd.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yge2p-05t1znm-working/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yge2p-05t1znm-working/dep-graph.part.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yge2p-05t1znm-working/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yge2p-05t1znm-working/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yge2p-05t1znm.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yiis2-0plhn9t-working/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yiis2-0plhn9t-working/dep-graph.part.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yiis2-0plhn9t-working/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yiis2-0plhn9t-working/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-29bm9marbh7k1/s-hhc56yiis2-0plhn9t.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc54pv6fi-0w9v1ri-4jj0s7b7z5jbpeu3trdbktbo0/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc54pv6fi-0w9v1ri-4jj0s7b7z5jbpeu3trdbktbo0/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc54pv6fi-0w9v1ri-4jj0s7b7z5jbpeu3trdbktbo0/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc54pv6fi-0w9v1ri.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc56yge2p-1we9z6u-9qgvjf59mn425cxbvdymy20c6/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc56yge2p-1we9z6u-9qgvjf59mn425cxbvdymy20c6/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc56yge2p-1we9z6u-9qgvjf59mn425cxbvdymy20c6/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/incremental/vec-2vfweli8kemtd/s-hhc56yge2p-1we9z6u.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/debug/vec" beforeDir="false" afterPath="$PROJECT_DIR$/target/debug/vec" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/flycheck0/stderr" beforeDir="false" afterPath="$PROJECT_DIR$/target/flycheck0/stderr" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/flycheck0/stdout" beforeDir="false" afterPath="$PROJECT_DIR$/target/flycheck0/stdout" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,8 +125,9 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "git-widget-placeholder": "main",
     "last_opened_file_path": "/Users/mac/RustroverProjects/cs-lab/vec",
+    "nodejs_package_manager_path": "npm",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "settings.editor.selected.configurable": "copyright",
+    "settings.editor.selected.configurable": "configurable.group.language",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -115,6 +189,9 @@
       <updated>1775326025142</updated>
       <workItem from="1775326026162" duration="2088000" />
       <workItem from="1775408330338" duration="4046000" />
+      <workItem from="1775841083708" duration="706000" />
+      <workItem from="1775842170214" duration="10000" />
+      <workItem from="1775842189557" duration="828000" />
     </task>
     <task id="LOCAL-00001" summary="firs commit">
       <option name="closed" value="true" />

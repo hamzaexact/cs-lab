@@ -1,5 +1,5 @@
 use std::{
-    alloc::{Layout, alloc, realloc},
+    alloc::{alloc, realloc, Layout},
     mem,
     ptr::NonNull,
 };
@@ -18,12 +18,10 @@ impl<T> CustomVec<T> {
             len: 0,
         }
     }
+
     pub fn grow(&mut self) {
         let align = mem::align_of::<T>();
         let elem_size = mem::size_of::<T>();
-        // cap * T.size?
-        // let lay = Layout::new::<Arr
-        // let layout = Layout::new::<T>();
         let layout: Layout = unsafe { Layout::from_size_align_unchecked(elem_size, align) };
         let (new_cap, ptr) = {
             if self.cap == 0 {
@@ -105,14 +103,14 @@ impl<T> CustomVec<T> {
 
 impl<T> Drop for CustomVec<T> {
     fn drop(&mut self) {
-        if std::mem::needs_drop::<T>() {
-            if self.len != 0 {
-                #[allow(clippy::redundant_pattern_matching)]
+        if self.len != 0 {
+            #[allow(clippy::redundant_pattern_matching)]
+            if std::mem::needs_drop::<T>() {
                 while let Some(_) = self.pop() {}
-                unsafe {
-                    let layout = Layout::array::<T>(self.cap).unwrap();
-                    std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
-                }
+            }
+            unsafe {
+                let layout = Layout::array::<T>(self.cap).unwrap();
+                std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
             }
         }
     }
