@@ -105,12 +105,14 @@ impl<T> CustomVec<T> {
 
 impl<T> Drop for CustomVec<T> {
     fn drop(&mut self) {
-        if self.len != 0 {
-            #[allow(clippy::redundant_pattern_matching)]
-            while let Some(_) = self.pop() {}
-            unsafe {
-                let layout = Layout::array::<T>(self.cap).unwrap();
-                std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+        if std::mem::needs_drop::<T>() {
+            if self.len != 0 {
+                #[allow(clippy::redundant_pattern_matching)]
+                while let Some(_) = self.pop() {}
+                unsafe {
+                    let layout = Layout::array::<T>(self.cap).unwrap();
+                    std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+                }
             }
         }
     }
