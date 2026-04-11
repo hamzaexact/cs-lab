@@ -3,8 +3,6 @@ use std::{
     mem,
     ptr::NonNull,
 };
-// #[derive(Debug)]
-// Layout
 pub(crate) struct CustomVec<T> {
     ptr: NonNull<T>, // NonNull pointer to the allocation
     cap: usize,      // Size of the allocation
@@ -26,7 +24,7 @@ impl<T> CustomVec<T> {
         // cap * T.size?
         // let lay = Layout::new::<Arr
         // let layout = Layout::new::<T>();
-        let layout = unsafe { Layout::from_size_align_unchecked(elem_size, align) };
+        let layout: Layout = unsafe { Layout::from_size_align_unchecked(elem_size, align) };
         let (new_cap, ptr) = {
             if self.cap == 0 {
                 unsafe {
@@ -72,34 +70,36 @@ impl<T> CustomVec<T> {
     }
     pub fn insert(&mut self, index: usize, elem: T) {
         assert!(index <= self.len, "index out of bounds");
-        if self.len == self.cap {
-            self.grow();
-        }
         let mut read_ptr = (self.len() - 1) as isize;
         unsafe {
             if index < self.len {
                 let offset = self.len - index;
                 for _ in 0..offset {
-                    // save the data at idx len - 1;
                     let element = std::ptr::read(self.ptr.as_ptr().offset(read_ptr));
-                    // write the data at idx read_ptr + 1;
                     std::ptr::write(self.ptr.as_ptr().offset(read_ptr + 1), element);
                     read_ptr -= 1;
                 }
-
-                // std::ptr::write(
-                //     self.ptr.as_ptr().offset(read_ptr + 1),
-                //     std::ptr::read(self.ptr.as_ptr().offset(read_ptr)),
-                // )
             }
-            // we already check if index <= self.len
-            // so worst case is self.len == 0 & index = self.len - N
             #[allow(clippy::ptr_offset_with_cast)]
             std::ptr::write(self.ptr.as_ptr().offset(index as isize), elem);
         }
-
-        // read ptr at the exact indext we want
         self.len += 1;
+    }
+    pub fn remove(&mut self, index: usize) {
+        assert!(index < self.len, "index out of bounds");
+        if self.len == self.cap {
+            self.grow();
+        }
+        self.len -= 1;
+        let mut read_ptr = index as isize;
+        unsafe {
+            let offset = self.len - index;
+            for _ in 0..offset {
+                let element = std::ptr::read(self.ptr.as_ptr().offset(read_ptr + 1));
+                std::ptr::write(self.ptr.as_ptr().offset(read_ptr), element);
+                read_ptr += 1;
+            }
+        }
     }
 }
 
