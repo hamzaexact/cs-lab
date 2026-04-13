@@ -1,31 +1,16 @@
-use std::{
-    alloc::Layout,
-    ptr::{self, NonNull},
-};
+use crate::raw_vec::CustomRawVec;
 
-#[derive(Debug)]
 pub struct CustomIntoIter<T> {
     start: *const T,
     end: *const T,
-    buffer: NonNull<T>,
-    cap: usize,
+    _buffer: CustomRawVec<T>,
 }
 impl<T> CustomIntoIter<T> {
-    pub unsafe fn new(ptr: NonNull<T>, cap: usize, len: usize) -> Self {
+    pub unsafe fn new(start: *const T, end: *const T, buffer: CustomRawVec<T>) -> Self {
         CustomIntoIter {
-            start: ptr.as_ptr(),
-            end: {
-                if len == 0 {
-                    ptr.as_ptr()
-                } else {
-                    #[allow(clippy::ptr_offset_with_cast)]
-                    unsafe {
-                        ptr.as_ptr().offset(len as isize)
-                    }
-                }
-            },
-            buffer: ptr,
-            cap,
+            start,
+            end,
+            _buffer: buffer,
         }
     }
 }
@@ -36,7 +21,7 @@ impl<T> Iterator for CustomIntoIter<T> {
             return None;
         }
         unsafe {
-            let element = ptr::read(self.start);
+            let element = std::ptr::read(self.start);
             self.start = self.start.offset(1);
             Some(element)
         }
@@ -56,18 +41,9 @@ impl<T> DoubleEndedIterator for CustomIntoIter<T> {
 
 impl<T> Drop for CustomIntoIter<T> {
     fn drop(&mut self) {
-        let cap = self.cap;
-        let buffer = self.buffer;
-        if self.cap != 0 {
-            if std::mem::needs_drop::<T>() {
-                #[allow(unused_variables)]
-                for val in self {}
-            }
-            let layout = Layout::array::<T>(cap).unwrap();
-            unsafe {
-                std::alloc::dealloc(buffer.as_ptr() as *mut u8, layout);
-            }
+        if std::mem::needs_drop::<T>() {
+            #[allow(unused_variables)]
+            for val in self {}
         }
     }
 }
-
