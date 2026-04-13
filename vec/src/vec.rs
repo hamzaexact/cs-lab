@@ -1,8 +1,9 @@
+use crate::into_iter::CustomIntoIter;
 use std::{
-    alloc::{alloc, realloc, Layout},
-    mem,
+    alloc::{Layout, alloc, realloc},
     ptr::NonNull,
 };
+
 pub(crate) struct CustomVec<T> {
     ptr: NonNull<T>, // NonNull pointer to the allocation
     cap: usize,      // Size of the allocation
@@ -11,7 +12,11 @@ pub(crate) struct CustomVec<T> {
 
 impl<T> CustomVec<T> {
     pub fn new() -> Self {
-        assert!(mem::size_of::<T>() != 0, "We're not ready to handle ZSTs");
+        assert_ne!(
+            std::mem::size_of::<T>(),
+            0,
+            "We're not ready to handle ZSTs"
+        );
         Self {
             ptr: NonNull::dangling(),
             cap: 0,
@@ -20,8 +25,8 @@ impl<T> CustomVec<T> {
     }
 
     pub fn grow(&mut self) {
-        let align = mem::align_of::<T>();
-        let elem_size = mem::size_of::<T>();
+        let align = std::mem::align_of::<T>();
+        let elem_size = std::mem::size_of::<T>();
         let layout: Layout = unsafe { Layout::from_size_align_unchecked(elem_size, align) };
         let (new_cap, ptr) = {
             if self.cap == 0 {
@@ -41,7 +46,7 @@ impl<T> CustomVec<T> {
                 (new_cap, ptr)
             }
         };
-        // Out of Memory
+        // Out of std::memory
         if ptr.is_null() {
             std::alloc::handle_alloc_error(layout);
         }
@@ -59,6 +64,7 @@ impl<T> CustomVec<T> {
         }
         self.len += 1;
     }
+
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             return None;
@@ -78,6 +84,7 @@ impl<T> CustomVec<T> {
                     read_ptr -= 1;
                 }
             }
+
             #[allow(clippy::ptr_offset_with_cast)]
             std::ptr::write(self.ptr.as_ptr().offset(index as isize), elem);
         }
@@ -101,10 +108,20 @@ impl<T> CustomVec<T> {
     }
 }
 
+impl<T> CustomVec<T> {
+    pub fn into_iter(self) -> CustomIntoIter<T> {
+        let ptr = self.ptr;
+        let cap = self.cap;
+        let len = self.len;
+        std::mem::forget(self);
+        unsafe { CustomIntoIter::new(ptr, cap, len) }
+    }
+}
 impl<T> Drop for CustomVec<T> {
     fn drop(&mut self) {
         if self.len != 0 {
             #[allow(clippy::redundant_pattern_matching)]
+            // Skip drop process for scalar types
             if std::mem::needs_drop::<T>() {
                 while let Some(_) = self.pop() {}
             }
