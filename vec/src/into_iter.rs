@@ -42,8 +42,7 @@ impl<T> DoubleEndedIterator for CustomIntoIter<T> {
 impl<T> Drop for CustomIntoIter<T> {
     fn drop(&mut self) {
         if std::mem::needs_drop::<T>() {
-            #[allow(unused_variables)]
-            for val in self {}
+            for _val in self {}
         }
     }
 }

@@ -9,6 +9,7 @@
 // * Supports insert, search, and delete with automatic rebalancing
 //
 // Read more about B+Trees: https://en.wikipedia.org/wiki/B%2B_tree
+#![allow(clippy::empty_line_after_doc_comments)]
 use std::{
     cell::RefCell,
     rc::{Rc, Weak},
@@ -192,7 +193,6 @@ where
     ///   found here
     /// ```
     pub fn search(&self, key: &K) -> Option<Entry<K, V>> {
-        
         if self.root.is_none() {
             return None;
         }
@@ -232,7 +232,7 @@ where
                 }
             };
             current = next;
-        };
+        }
 
         // Binary search within the leaf node
         if let BTreeNode::Leaf { data: entries, .. } = &*current.borrow() {
@@ -511,20 +511,20 @@ where
                            +-----------+
                        +---+  Parent   |
                        |   +-----------+
-                       |                
-                       |                
-                       |                
-                       |                
-                   +---------+           
-                   | LEFT    | (to Split; has too many children) 
-              +----+   NODE  +--+         
-              |    -+----+---+  |         
-              |     |    |      |         
-              |     |    |      |         
-              |     |    |      |         
-              |     |    |      |         
-            +---+ +---+ +---+  +---+     
-            |C1 | |C2 | |C3 |  |C4 |     
+                       |
+                       |
+                       |
+                       |
+                   +---------+
+                   | LEFT    | (to Split; has too many children)
+              +----+   NODE  +--+
+              |    -+----+---+  |
+              |     |    |      |
+              |     |    |      |
+              |     |    |      |
+              |     |    |      |
+            +---+ +---+ +---+  +---+
+            |C1 | |C2 | |C3 |  |C4 |
             +---+ +---+ +---+  +---+
         */
         //
@@ -533,18 +533,18 @@ where
         //
         // After split:
         /*
-                            +-----------+                
-                     +------+  PARENT   +------+         
-                     |      +-----------+      |         
-                     |                         |         
-                     |                         |         
-                     |                         |         
-                     v                         v         
-                 +--------+                +-------+     
-              +--+ LEFT   +-+           +--+ RIGHT +--+  
-              |  +--------+ |           |  +-------+  |  
-              |             |           |             |  
-              |             |           |             |  
+                            +-----------+
+                     +------+  PARENT   +------+
+                     |      +-----------+      |
+                     |                         |
+                     |                         |
+                     |                         |
+                     v                         v
+                 +--------+                +-------+
+              +--+ LEFT   +-+           +--+ RIGHT +--+
+              |  +--------+ |           |  +-------+  |
+              |             |           |             |
+              |             |           |             |
             +---+         +---+       +---+         +---+
             |C1 |         |C2 |       |C3 |         |C4 |
             +---+         +---+       +---+         +---+
@@ -1805,13 +1805,10 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Leaf { next, .. } => match next {
-                Some(c_next) => {
-                    Some(Rc::clone(c_next))
-                }
+                Some(c_next) => Some(Rc::clone(c_next)),
                 None => None,
             },
             _ => None,
         }
     }
 }
-

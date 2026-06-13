@@ -8,14 +8,9 @@ pub(crate) struct CustomVec<T> {
     buffer: CustomRawVec<T>,
     len: usize, // The number of elements that have been initialized.
 }
-
 impl<T> CustomVec<T> {
     pub fn new() -> Self {
-        assert_ne!(
-            std::mem::size_of::<T>(),
-            0,
-            "We're not ready to handle ZSTs"
-        );
+        assert_ne!(size_of::<T>(), 0, "We're not ready to handle ZSTs");
         Self {
             buffer: CustomRawVec::new(),
             len: 0,
@@ -24,16 +19,18 @@ impl<T> CustomVec<T> {
     pub fn ptr(&self) -> *mut T {
         self.buffer.ptr.as_ptr()
     }
+
     fn cap(&self) -> usize {
         self.buffer.cap
     }
 
     pub fn grow(&mut self) {
-        let align = std::mem::align_of::<T>();
-        let elem_size = std::mem::size_of::<T>();
+        let align = align_of::<T>();
+        let elem_size = size_of::<T>();
         let layout: Layout = unsafe { Layout::from_size_align_unchecked(elem_size, align) };
         let (new_cap, ptr) = {
             if self.buffer.cap == 0 {
+                // unsafe
                 unsafe {
                     let ptr = alloc(layout);
                     (1, ptr)
@@ -52,6 +49,7 @@ impl<T> CustomVec<T> {
             }
         };
         // Out of std::memory
+        //
         if ptr.is_null() {
             std::alloc::handle_alloc_error(layout);
         }
@@ -130,15 +128,25 @@ impl<T> CustomVec<T> {
             )
         }
     }
+    pub fn from_raw_parts(ptr: *mut T, len: usize, cap: usize) -> Self {
+        assert!(len <= cap);
+        unsafe {
+            Self {
+                buffer: CustomRawVec {
+                    ptr: NonNull::new_unchecked(ptr),
+                    cap,
+                },
+                len,
+            }
+        }
+    }
 }
 impl<T> Drop for CustomVec<T> {
     fn drop(&mut self) {
-        if self.len != 0 {
-            #[allow(clippy::redundant_pattern_matching)]
-            // Skip drop process for scalar types
-            if std::mem::needs_drop::<T>() {
-                while let Some(_) = self.pop() {}
-            }
+        #[allow(clippy::redundant_pattern_matching)]
+        // Skip drop process for scalar types
+        if std::mem::needs_drop::<T>() {
+            while let Some(_) = self.pop() {}
         }
     }
 }
