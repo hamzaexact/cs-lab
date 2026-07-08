@@ -236,9 +236,9 @@ where
 
         // Binary search within the leaf node
         if let BTreeNode::Leaf { data: entries, .. } = &*current.borrow() {
-            match entries.binary_search_by(|entry| entry.key.cmp(key)) {
-                Ok(idx) => return Some(entries[idx].clone()),
-                Err(_) => return None,
+            return match entries.binary_search_by(|entry| entry.key.cmp(key)) {
+                Ok(idx) => Some(entries[idx].clone()),
+                Err(_) => None,
             }
         }
 
@@ -732,10 +732,10 @@ where
                 }
             });
 
-            if state.unwrap() {
-                return true;
+            return if state.unwrap() {
+                true
             } else {
-                return false;
+                false
             }
         }
 
@@ -750,14 +750,14 @@ where
         // Execute the deletion plan
         match plan {
             (DeletePlanner::Empty, ..) => {
-                return false;
+                false
             }
 
             (DeletePlanner::Simple, ..) => {
                 // Node will still have enough keys after deletion
                 // Just remove the key directly
 
-                return leaf_rc
+                leaf_rc
                     .borrow_mut()
                     .as_mut_leaf(|_, data, _| {
                         match data.binary_search_by(|entry| entry.key.cmp(key)) {
@@ -768,7 +768,7 @@ where
                             Err(_) => false,
                         }
                     })
-                    .unwrap_or(false);
+                    .unwrap_or(false)
             }
 
             (DeletePlanner::RightBorrow, r_leaf, pos) => {
@@ -776,7 +776,7 @@ where
 
                 // Right sibling has extra keys
                 // Move one key from right sibling to current node
-                return self.right_borrow(Rc::clone(&leaf_rc), key, r_leaf, pos);
+                self.right_borrow(Rc::clone(&leaf_rc), key, r_leaf, pos)
             }
 
             (DeletePlanner::LeftBorrow, left_sibl, left_sibl_pos) => {
@@ -784,7 +784,7 @@ where
 
                 // Left sibling has extra keys
                 // Move one key from left sibling to current node
-                return self.left_borrow(key, leaf_rc, left_sibl, left_sibl_pos);
+                self.left_borrow(key, leaf_rc, left_sibl, left_sibl_pos)
             }
 
             _ => {
@@ -792,7 +792,7 @@ where
 
                 // Neither sibling can lend a key
                 // Must merge this node with a sibling
-                return self.merge_leaf(leaf_rc, key);
+                self.merge_leaf(leaf_rc, key)
             }
         }
     }
@@ -1440,50 +1440,6 @@ where
         }
     }
 
-    /// Prints the tree level-by-level for debugging
-    pub fn _print_tree(&self)
-    where
-        K: std::fmt::Debug,
-    {
-        if self.root.is_none() {
-            println!("<empty tree>");
-            return;
-        }
-
-        let mut queue = std::collections::VecDeque::new();
-        queue.push_back(Rc::clone(self.root.as_ref().unwrap()));
-
-        let mut level = 0;
-        while !queue.is_empty() {
-            let level_size = queue.len();
-            print!("Level {}: ", level);
-
-            for _ in 0..level_size {
-                let node = queue.pop_front().unwrap();
-                let n = node.borrow();
-
-                match &*n {
-                    BTreeNode::Internal { keys, children, .. } => {
-                        print!("(I {:?}) ", keys);
-
-                        for ch in children {
-                            queue.push_back(Rc::clone(ch));
-                        }
-                    }
-
-                    BTreeNode::Leaf { data, .. } => {
-                        let keys: Vec<_> = data.iter().map(|e| &e.key).collect();
-                        print!("(L [{:?}]) ", keys);
-                    }
-                }
-            }
-
-            println!();
-            level += 1;
-        }
-        println!("===============================");
-    }
-
     /// Returns the leftmost (smallest) leaf node in the tree
     pub fn _leftmost_leaf(&mut self) -> Option<Rc<RefCell<BTreeNode<K, V>>>> {
         if self.root.is_none() {
@@ -1494,7 +1450,7 @@ where
         match &*root_ptr {
             BTreeNode::Leaf { .. } => {
                 drop(root_ptr);
-                return Some(root);
+                Some(root)
             }
             BTreeNode::Internal { children, .. } => {
                 let first_child = Rc::clone(&children[0]);
@@ -1510,7 +1466,7 @@ where
                     };
                     current = next;
                 }
-                return Some(current);
+                Some(current)
             }
         }
     }
